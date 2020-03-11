@@ -40,6 +40,8 @@ class BlockList {
 
     BlockIdxType Alloc ();
     void Free (BlockIdxType Idx);
+    vector <string> GetSubDirs (BlockIdxType Idx);
+    string Idx2DirString (BlockIdxType Idx);
     string Idx2FileName (BlockIdxType Idx);
     FILE *OpenBlockFile (BlockIdxType Idx, const char *mode);
 };

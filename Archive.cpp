@@ -58,11 +58,15 @@ ArchFile::ArchFile (Archive *arch, const LiveFile &lf) {
 }
 
 void ArchFile::Create () {
-    // Start the File Info block
-    BlockIdxType BlkIdx = Arch->FInfoBlocks.Alloc();
-    FILE *Finfo = Arch->FInfoBlocks.OpenBlockFile (BlkIdx, "wb");
+    // Create Finfo file contents
+    string FInfo = Stats + "\n";
 
-    fclose (Finfo);
+    // Create the file info block in the archive
+    BlockIdxType BlkIdx = Arch->FInfoBlocks.Alloc();
+    FILE *FInfoF = Arch->FInfoBlocks.OpenBlockFile (BlkIdx, "wb");
+    if (fwrite (FInfo.c_str(), FInfo.size(), 1, FInfoF) != 1)
+        THROW_PBEXCEPTION_IO ("Error writing to FInfo block file: " + Arch->FInfoBlocks.Idx2FileName(BlkIdx));
+    fclose (FInfoF);
 }
 
 BlockIdxType BlockList::Alloc () {
@@ -157,25 +161,44 @@ void BlockList::Free (BlockIdxType Idx) {
 }
 
 // convert a blk number to a path relative to a top dir
-string BlockList::Idx2FileName (BlockIdxType Idx) {
-    stringstream FileNameSS;
-    FileNameSS << TopDir << "/";
+vector <string> BlockList::GetSubDirs (BlockIdxType Idx) {
+    vector <string> SubDirs;
     BlockIdxType TmpBlk = Idx / O.BlockNumModulus;
     while (TmpBlk) {
         BlockIdxType Part   = TmpBlk % O.BlockNumModulus;
                      TmpBlk = TmpBlk / O.BlockNumModulus;
 
-        FileNameSS << "d" << setfill('0') << setw (O.BlockNumDigits) << Part << "/";
+        stringstream SubDir;
+        SubDir << "d" << setfill('0') << setw (O.BlockNumDigits) << Part;
+        SubDirs.push_back (SubDir.str());
     }
-    FileNameSS << Idx;
-    return FileNameSS.str();
+    return SubDirs;
+}
+
+string BlockList::Idx2DirString (BlockIdxType Idx) {
+    string DirString = TopDir;
+    vector <string> SubDirs = GetSubDirs (Idx);
+    for (auto SubDir : SubDirs)
+        DirString += "/" + SubDir;
+    return DirString;
+}
+
+string BlockList::Idx2FileName (BlockIdxType Idx) {
+    return Idx2DirString (Idx) + "/" + to_string (Idx);
 }
 
 FILE *BlockList::OpenBlockFile (BlockIdxType Idx, const char *mode) {
-    string BlockFileName = Idx2FileName (Idx);
+    string BlockFileName = TopDir;
 
-    // TBD: create subdirs
+    // create subdirs
+    vector <string> SubDirs = GetSubDirs (Idx);
+    for (auto SubDir : SubDirs) {
+        BlockFileName += "/" + SubDir;
+        if (!fs::exists (BlockFileName) && !fs::create_directory (BlockFileName))
+            THROW_PBEXCEPTION_IO ("Can't create directory: " + BlockFileName);
+    }
 
+    BlockFileName += "/" + to_string (Idx);
     FILE *BlkFile = fopen (BlockFileName.c_str(), mode);
     if (!BlkFile)
         THROW_PBEXCEPTION_IO ("Can't open block file: " + BlockFileName);
