@@ -16,7 +16,7 @@ class Create {
     Archive                   Arch;      // information about current repository
     vector <string>           FileList;  // ordered list of files to be backed up
     map    <string, LiveFile> FileMap;   // lookup file structs by name
-    map <uint32_t, map <uint64_t, ArchFile>> Inodes; // archive info for each inode of each block device
+    map <uint32_t, map <uint64_t, ArchFile*>> Inodes; // archive info for each inode of each block device
 
      Create ();
     ~Create ();

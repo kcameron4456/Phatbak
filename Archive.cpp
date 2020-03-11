@@ -57,27 +57,29 @@ void Archive::Init (RepoInfo *repo, const string &name) {
     ChunkBlocks.Init (ArchDirName + "/Chunks");
 }
 
-void Archive::PushFileList (const string &Fname, BlockIdxType Block, const string &Hash) {
-    string FileEntry = Fname + " /../ " + to_string(Block) + " U " + Hash + "\n";
+void Archive::PushFileList (const string &Fname, BlockIdxType Block, char Comp, const string &Hash) {
+    string FileEntry = Fname + " /../ " + to_string(Block) + " " + Comp + " " + Hash + "\n";
     fputs (FileEntry.c_str(), ListFile);
 }
 
 ArchFile::ArchFile (Archive *arch) {
     Arch = arch;
+
+    Mtx.lock();
 }
 
-void ArchFile::Create (LiveFile &lf) {
-    Name  = lf.Name;
-    Stats = lf.MakeInfoHeader ();
+void ArchFile::Create (LiveFile &LF) {
+    Name  = LF.Name;
+    Stats = LF.MakeInfoHeader ();
 
     // Create Finfo file contents
     string FInfo = Stats + "\n";
 
     // For files, create chunks and FInfo entries
-    if (lf.IsFile()) {
+    if (LF.IsFile()) {
         char Chunk [O.ChunkSize];
-        lf.OpenRead();
-        while (int RdSize = lf.ReadChunk (Chunk)) {
+        LF.OpenRead();
+        while (int RdSize = LF.ReadChunk (Chunk)) {
             // write the chunk to the archive
             BlockIdxType ChnkIdx = Arch->ChunkBlocks.Alloc();
             FILE *ChunkF = Arch->ChunkBlocks.OpenBlockFile (ChnkIdx, "wb");
@@ -93,26 +95,48 @@ void ArchFile::Create (LiveFile &lf) {
             // add chunk to finfo
             FInfo += "U: " + to_string (ChnkIdx) + " " + HashHex + "\n";
         }
-        lf.Close();
+        LF.Close();
     }
-    if (lf.IsSLink()) {
-        FInfo += "L: " + lf.Target + "\n";
+    if (LF.IsSLink()) {
+        FInfo += "L: " + LF.Target + "\n";
     }
 
     // Create the file info block in the archive
-    BlockIdxType BlkIdx = Arch->FInfoBlocks.Alloc();
-    FILE *FInfoF = Arch->FInfoBlocks.OpenBlockFile (BlkIdx, "wb");
+    InfoBlkNum = Arch->FInfoBlocks.Alloc();
+    FILE *FInfoF = Arch->FInfoBlocks.OpenBlockFile (InfoBlkNum, "wb");
     if (fwrite (FInfo.c_str(), FInfo.size(), 1, FInfoF) != 1)
-        THROW_PBEXCEPTION_IO ("Error writing to FInfo block file: " + Arch->FInfoBlocks.Idx2FileName(BlkIdx));
+        THROW_PBEXCEPTION_IO ("Error writing to FInfo block file: " + Arch->FInfoBlocks.Idx2FileName(InfoBlkNum));
     fclose (FInfoF);
 
     // get the finfo block hash
     Hash Hasher (O.HashType);
     Hasher.Update (FInfo.c_str(), FInfo.size());
-    string HashHex = Hasher.GetHash();
+    InfoBlkHash = Hasher.GetHash();
+
+    // TBD: compress
+    InfoBlkComp = 'U';
 
     // update archive file list
-    Arch->PushFileList (Name, BlkIdx, HashHex);
+    Arch->PushFileList (Name, InfoBlkNum, InfoBlkComp, InfoBlkHash);
+
+    // flag completion
+    Mtx.unlock();
+}
+
+// link to previously archived file
+void ArchFile::CreateLink (LiveFile &LF, ArchFile *Prev) {
+    Name  = LF.Name;
+
+    // wait for processing of original file to complete
+    Prev->Mtx.lock();
+
+    Arch->PushFileList (Name, Prev->InfoBlkNum, Prev->InfoBlkComp, Prev->InfoBlkHash);
+
+    // release prev file
+    Prev->Mtx.unlock();
+
+    // release this file
+    Mtx.unlock();
 }
 
 // allocate a block index

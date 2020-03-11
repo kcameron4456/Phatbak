@@ -17,19 +17,40 @@ void Create::DoCreate (const string &Name) {
 printf ("Create::DoCreate %s\n", Name.c_str());
     // create local and archive file structures
     LiveFile LF (Name);
-    ArchFile AF (&Arch);
+    ArchFile *AF = new ArchFile (&Arch);
 
     // remember info for each file
     FileList.push_back (Name);          // list of all files
     FileMap [Name] = LF;                // reference file info by name
-    //TBD: test and set inode info properly for hardlinks
-    Inodes [LF.Dev()][LF.INode()] = AF; // keep track of inodes we've seen for each device
+
+    // if the device and inode has already been seen, process hard link
+    bool KeepAF = false;
+    if (uint32_t INode = LF.INode()) {
+        uint32_t Dev = LF.Dev();
+        if (Inodes      .find(Dev  ) != Inodes      .end() &&
+            Inodes [Dev].find(INode) != Inodes [Dev].end()) {
+            // this dev/inode combo has been seen before
+
+            // create the link
+            ArchFile *PrevAF = Inodes [Dev][INode];
+            AF->CreateLink (LF, PrevAF);
+
+            // that's all
+            return;
+        } else {
+            // remember the first instance of this dev/inode combo
+            Inodes [Dev][INode] = AF;
+            KeepAF = true;
+        }
+    }
 
     // create the archived file
-    AF.Create(LF);
+    AF->Create(LF);
 
     // create sub dirs/files
-    for (auto Sub : LF.GetSubs()) {
+    for (auto Sub : LF.GetSubs())
         DoCreate (Sub);
-    }
+
+    if (!KeepAF)
+        delete AF;
 }

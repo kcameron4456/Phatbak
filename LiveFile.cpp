@@ -46,9 +46,8 @@ vector <string> LiveFile::GetSubs () {
     vector <string> Subs;
     if (!IsDir())
         return Subs;
-    for (const auto& entry : filesystem::directory_iterator(Name)) {
+    for (const auto& entry : filesystem::directory_iterator(Name))
         Subs.push_back (Name + "/" + entry.path().filename().string());
-    }
     return Subs;
 }
 
@@ -78,49 +77,35 @@ string CanonizeFileName (const string &RawName) {
     // this is a painful way of doing it but I couldn't
     // find a standard library version that wouldn't follow
     // symbolic links
-//printf ("CanonizeFileName: RawName=%s\n", RawName.c_str());
-    string CanName = RawName;
+    string FullName = RawName;
 
     // prepend current directory to name, if needed
-    if ((CanName.substr (0,1)) != "/") {
-        char cwd [10000];
-        if (getcwd (cwd, sizeof(cwd)) == NULL) {
-            // FLAG ERROR
-        }
-//printf ("CanonizeFileName: cwd=%s\n", cwd);
-        CanName = string(cwd) + "/" + CanName;
+    if ((FullName.substr (0,1)) != "/") {
+        char cwd [4000];
+        if (getcwd (cwd, sizeof(cwd)) == NULL)
+            THROW_PBEXCEPTION ("getcwd failed: ");
+        FullName = string(cwd) + "/" + FullName;
     }
 
     // tokenize by spliting on "/"
     // do you believe this ancient c function is better than
     // anything in the c++ string library?
-    char *WorkStr  = strdup (CanName.c_str());
-    char *WorkStr2 = WorkStr;
-    char *WorkSave = WorkStr;
-//printf ("CanonizeFileName: WorkStr=%s\n", WorkStr);
+    char *WorkSave = strdup (FullName.c_str());
+    char *WorkStr  = WorkSave;
     vector <string> Toks;
-    char *tok = strtok_r (WorkStr, "/", &WorkStr2);
-    while (tok) {
+    while (char *tok = strtok_r (WorkStr, "/", &WorkStr))
         Toks.push_back(tok);
-//printf ("CanonizeFileName: tok=%s\n", tok);
-        tok = strtok_r (NULL, "/", &WorkStr2);
-    }
     free (WorkSave);
 
     // get rid of all instances of "."
-    bool changed;
-    do {
-        changed = 0;
-        for (auto itr = Toks.begin(); itr != Toks.end(); itr++) {
-            if (*itr == ".") {
-                Toks.erase (itr);
-                changed = 1;
-                break;
-            }
-        }
-    } while (changed);
+    vector <string> Tmp;
+    for (auto Tok : Toks)
+        if (Tok != ".")
+            Tmp.push_back(Tok);
+    Toks = Tmp;
 
     // make multiple passes through the tokens if needed to clean up 'dir/..'
+    bool changed;
     do {
         changed = 0;
         for (auto itr = Toks.begin(); itr != Toks.end(); itr++) {
@@ -135,14 +120,13 @@ string CanonizeFileName (const string &RawName) {
     } while (changed);
 
     // assemble the full path from the components
-    string FullName;
-    for (auto itr = Toks.begin(); itr != Toks.end(); itr++)
-        FullName += "/" + *itr;
-    if (FullName == "")
-        FullName = "/";
-//printf ("CanonizeFileName: FullName=%s\n", FullName.c_str());
+    string CanName;
+    for (auto Tok : Toks)
+        CanName += "/" + Tok;
+    if (CanName == "")
+        CanName = "/";
 
-    return FullName;
+    return CanName;
 }
 
 void LiveFile::Close () {

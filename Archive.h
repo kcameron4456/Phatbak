@@ -59,21 +59,25 @@ class Archive {
     Archive () {} // blank constructor
     Archive (RepoInfo *repo, const string &name);
     void Init (RepoInfo *repo, const string &name);
-    void PushFileList (const string &Fname, BlockIdxType Block, const string &Hash);
+    void PushFileList (const string &Fname, BlockIdxType Block, char Comp, const string &Hash);
 };
 
 class ArchFile {
     public:
     string   Name;
     Archive *Arch;
-    uint64_t InfoBlkN;
+    BlockIdxType InfoBlkNum;
+    char     InfoBlkComp;
+    string   InfoBlkHash;
+    mutex    Mtx;
     string   Stats;
     vector <uint64_t> DataBlkNs;
 
     ArchFile () {} // blank constructor
     ArchFile (Archive *arch);
 
-    void Create (LiveFile &lf);  // add file to archive
+    void Create     (LiveFile &lf);   // add file to archive
+    void CreateLink (LiveFile &lf, ArchFile *Prev); // link to previously archived file
 };
 
 #endif // ARCHIVE_H
