@@ -115,6 +115,7 @@ void ArchFile::Create (LiveFile &lf) {
     Arch->PushFileList (Name, BlkIdx, HashHex);
 }
 
+// allocate a block index
 BlockIdxType BlockList::Alloc () {
     Mtx.lock();
 
@@ -152,6 +153,7 @@ int BlockList::Search (BlockIdxType Idx) {
     return Search (Idx, 0, Ranges.size()-1);
 }
 
+// find a block index within the allocated blocks
 int BlockList::Search (BlockIdxType Idx, int Start, int End) {
     if (Start > End)
         return -1;
@@ -172,6 +174,7 @@ int BlockList::Search (BlockIdxType Idx, int Start, int End) {
     return Search (Idx, Mid+1, End);
 }
 
+// free a block index from the allocated blocks
 void BlockList::Free (BlockIdxType Idx) {
     Mtx.lock();
 
@@ -206,7 +209,7 @@ void BlockList::Free (BlockIdxType Idx) {
     Mtx.unlock();
 }
 
-// convert a blk number to a path relative to a top dir
+// convert a block number to a list of directory components
 vector <string> BlockList::GetSubDirs (BlockIdxType Idx) {
     vector <string> SubDirs;
     BlockIdxType TmpBlk = Idx / O.BlockNumModulus;
@@ -221,6 +224,7 @@ vector <string> BlockList::GetSubDirs (BlockIdxType Idx) {
     return SubDirs;
 }
 
+// convert a block number to a directory path
 string BlockList::Idx2DirString (BlockIdxType Idx) {
     string DirString = TopDir;
     vector <string> SubDirs = GetSubDirs (Idx);
@@ -229,6 +233,7 @@ string BlockList::Idx2DirString (BlockIdxType Idx) {
     return DirString;
 }
 
+// convert a block number to a path relative to a top dir
 string BlockList::Idx2FileName (BlockIdxType Idx) {
     return Idx2DirString (Idx) + "/" + to_string (Idx);
 }
