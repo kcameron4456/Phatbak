@@ -13,6 +13,17 @@ Archive::Archive (RepoInfo *repo, const string &name) {
     Init (repo, name);
 }
 
+Archive::~Archive () {
+    time_t EndTime = time(NULL);
+    fprintf (LogFile, "Backup Ended At: %s", ctime(&EndTime));
+
+    int Secs = difftime (EndTime, O.StartTime);
+    fprintf (LogFile, "Elasped Time: %d seconds\n", Secs);
+
+    fclose (LogFile);
+    fclose (ListFile);
+}
+
 void Archive::Init (RepoInfo *repo, const string &name) {
     Repo = repo;
     Name = name;

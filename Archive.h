@@ -57,6 +57,7 @@ class Archive {
     BlockList ChunkBlocks;
 
     Archive () {} // blank constructor
+    ~Archive ();
     Archive (RepoInfo *repo, const string &name);
     void Init (RepoInfo *repo, const string &name);
     void PushFileList (const string &Fname, BlockIdxType Block, char Comp, const string &Hash);
