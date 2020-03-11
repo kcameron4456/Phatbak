@@ -14,7 +14,9 @@ Create::~Create () {
 }
 
 void Create::DoCreate (const string &Name) {
-printf ("Create::DoCreate %s\n", Name.c_str());
+    if (O.ShowFiles)
+        printf ("%s\n", Name.c_str());
+
     // create local and archive file structures
     LiveFile LF (Name);
     ArchFile *AF = new ArchFile (&Arch);
