@@ -1,4 +1,5 @@
 #include "Create.h"
+#include "Extract.h"
 #include "LiveFile.h"
 #include "Logging.h"
 #include "Opts.h"
@@ -13,6 +14,9 @@ int main (int argc, const char **argv) {
             Create C;
             for (auto Dir : O.FileArgs)
                 C.DoCreate (CanonizeFileName (Dir));
+        } else if (O.Operation == Opts::DoExtract) {
+            Extract E (O);
+            E.DoExtract (); // TBD: use file args to extract subset of archive
         }
     }
 

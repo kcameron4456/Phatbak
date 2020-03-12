@@ -1,5 +1,5 @@
-#ifndef ARCHIVE_H
-#define ARCHIVE_H
+#ifndef BLOCKLIST_H
+#define BLOCKLIST_H
 
 #include "LiveFile.h"
 #include "RepoInfo.h"
@@ -46,39 +46,4 @@ class BlockList {
     FILE *OpenBlockFile (BlockIdxType Idx, const char *mode);
 };
 
-class Archive {
-    public:
-    string    Name;
-    string    ArchDirName;
-    RepoInfo *Repo;
-    FILE     *LogFile;
-    FILE     *ListFile;
-    BlockList FInfoBlocks;
-    BlockList ChunkBlocks;
-
-    Archive () {} // blank constructor
-    ~Archive ();
-    Archive (RepoInfo *repo, const string &name);
-    void Init (RepoInfo *repo, const string &name);
-    void PushFileList (const string &Fname, BlockIdxType Block, char Comp, const string &Hash);
-};
-
-class ArchFile {
-    public:
-    string   Name;
-    Archive *Arch;
-    BlockIdxType InfoBlkNum;
-    char     InfoBlkComp;
-    string   InfoBlkHash;
-    mutex    Mtx;
-    string   Stats;
-    vector <uint64_t> DataBlkNs;
-
-    ArchFile () {} // blank constructor
-    ArchFile (Archive *arch);
-
-    void Create     (LiveFile &lf);   // add file to archive
-    void CreateLink (LiveFile &lf, ArchFile *Prev); // link to previously archived file
-};
-
-#endif // ARCHIVE_H
+#endif // BLOCKLIST_H

@@ -19,7 +19,7 @@ void Create::DoCreate (const string &Name) {
 
     // create local and archive file structures
     LiveFile LF (Name);
-    ArchFile *AF = new ArchFile (&Arch);
+    ArchFileCreate *AF = new ArchFileCreate (&Arch);
 
     // remember info for each file
     FileList.push_back (Name);          // list of all files
@@ -34,7 +34,7 @@ void Create::DoCreate (const string &Name) {
             // this dev/inode combo has been seen before
 
             // create the link
-            ArchFile *PrevAF = Inodes [Dev][INode];
+            ArchFileCreate *PrevAF = Inodes [Dev][INode];
             AF->CreateLink (LF, PrevAF);
 
             // that's all

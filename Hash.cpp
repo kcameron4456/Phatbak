@@ -26,3 +26,11 @@ string Hash::GetHash () {
     }
     return HashHex;
 }
+
+eHashType HashNameToEnum (const string &Name) {
+    for (int i = 0; i < HashType_Null; i++) {
+        if (Name == HashNames [i])
+            return (eHashType) i;
+    }
+    THROW_PBEXCEPTION_FMT ("Unrecognized Hash Algorythm: " + Name);
+}

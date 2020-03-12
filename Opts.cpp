@@ -218,18 +218,22 @@ void Opts::ParseCmdLine (const int argc, const char *argv[]) {
         }
 
         int TmpInt = 0;
-        PARSE_MinusFlg ("-c"        , TESTOP, Operation  , DoCreate , )
-        PARSE_MinusFlg ("-x"        , TESTOP, Operation  , DoExtract, )
-        PARSE_MinusFlg ("-t"        , TESTOP, Operation  , DoTest   , )
-        PARSE_MinusFlg ("-v"       ,, ShowFiles  , 1,)
-        PARSE_MinusFlg ("-D"       ,, ShowFiles=ArchDiag, 1, )
-        PARSE_MinusVal ("-T"   ,"%d", &NumThreads,)
-        // TBD: PARSE_MinusFlg ("-iZ"      ,,  TmpInt   , 1, IntCompType=TTCMPT_ZSTD;)
-        PARSE_MinusVal ("-iZl","%d", &IntComprLvl,)
-        PARSE_MinusFlg ("-h"       ,, TmpInt     , 1, PrintHelp();)
-        PARSE_MinusFlg ("-help"    ,, TmpInt     , 1, PrintHelp();)
-        PARSE_MinusFlg ("--help"   ,, TmpInt     , 1, PrintHelp();)
-        PARSE_MinusFlg ("--version",, TmpInt     , 1, PrintVersion();)
+        PARSE_MinusFlg ("-c"                , TESTOP, Operation  , DoCreate , )
+        PARSE_MinusFlg ("-x"                , TESTOP, Operation  , DoExtract, )
+        PARSE_MinusFlg ("-t"                , TESTOP, Operation  , DoTest   , )
+        PARSE_MinusFlg ("-v"               ,, ShowFiles  , 1,)
+        PARSE_MinusFlg ("-D"               ,, ShowFiles=ArchDiag, 1, )
+        PARSE_MinusVal ("-T"               ,"%d", &NumThreads,)
+        // TBD: PARSE_MinusFlg ("-iZ"           ,,  TmpInt   , 1, IntCompType=TTCMPT_ZSTD;)
+        PARSE_MinusVal ("-iZl","%d"        , &IntComprLvl,)
+        PARSE_MinusStr ("--hash"           , arg, HashType = HashNameToEnum(arg);)
+        PARSE_MinusVal ("--chunksize"      ,"%d", &ChunkSize,)
+        PARSE_MinusVal ("--blocknumdigits" ,"%d", &BlockNumDigits,)
+        PARSE_MinusVal ("--blocknummodulus","%d", &BlockNumModulus,)
+        PARSE_MinusFlg ("-h"               ,, TmpInt     , 1, PrintHelp();)
+        PARSE_MinusFlg ("-help"            ,, TmpInt     , 1, PrintHelp();)
+        PARSE_MinusFlg ("--help"           ,, TmpInt     , 1, PrintHelp();)
+        PARSE_MinusFlg ("--version"        ,, TmpInt     , 1, PrintVersion();)
 
         ArgError(arg);
     }
@@ -276,7 +280,6 @@ void Opts::Print (FILE *F) {
     for (int i = 0; i < FileArgs.size(); i++)
         Files += FileArgs[i] + " ";
 
-    fprintf (F, "Start Time: %s", asctime(localtime(&StartTime)));
     fprintf (F, "Program Options:\n");
     fprintf (F, "   CmdLine         = %s\n", CmdLine.c_str());
     fprintf (F, "   Operation       = %s\n", OpText());
