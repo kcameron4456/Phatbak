@@ -157,32 +157,9 @@ void Opts::ParseCmdLine (const int argc, const char *argv[]) {
         CmdLine += argv[argidx];
     }
 
-    // see if the first argument is a gnu-tar style operation arg
-    const char *arg = NULL;
-    argidx = 1;
-    if (argidx < argc)
-        arg = argv[argidx];
-    if (arg && *arg != '-') {
-        argidx++;
-
-        // parse operation
-        for (const char *c = arg; *c; c++) {
-            switch (*c) {
-                case 'c' : TESTOP; Operation = DoCreate ; break;
-                case 'x' : TESTOP; Operation = DoExtract; break;
-                case 't' : TESTOP; Operation = DoTest   ; break;
-                case 'v' :         ShowFiles = 1        ; break;
-                case 'D' :         ArchDiag  = 1        ; break;
-                default:
-                    fprintf (stderr, "Unrecognized operation arg: %c\n", *c);
-                    PrintHelp(1);
-            }
-        }
-    }
-
     // step through all "-" and "--" args
-    for (; argidx < argc; argidx++) {
-        arg = argv[argidx];
+    for (argidx = 1; argidx < argc; argidx++) {
+        const char *arg = argv[argidx];
 
         // test non-minus arg
         if (arg[0] != '-') {
@@ -218,27 +195,27 @@ void Opts::ParseCmdLine (const int argc, const char *argv[]) {
         }
 
         int TmpInt = 0;
-        PARSE_MinusFlg ("-c"                , TESTOP, Operation  , DoCreate , )
-        PARSE_MinusFlg ("-x"                , TESTOP, Operation  , DoExtract, )
-        PARSE_MinusFlg ("-t"                , TESTOP, Operation  , DoTest   , )
-        PARSE_MinusFlg ("-v"               ,, ShowFiles  , 1,)
-        PARSE_MinusFlg ("-D"               ,, ShowFiles=ArchDiag, 1, )
-        PARSE_MinusVal ("-T"               ,"%d", &NumThreads,)
-        // TBD: PARSE_MinusFlg ("-iZ"           ,,  TmpInt   , 1, IntCompType=TTCMPT_ZSTD;)
-        PARSE_MinusVal ("-iZl","%d"        , &IntComprLvl,)
-        PARSE_MinusStr ("--hash"           , arg, HashType = HashNameToEnum(arg);)
-        PARSE_MinusVal ("--chunksize"      ,"%d", &ChunkSize,)
-        PARSE_MinusVal ("--blocknumdigits" ,"%d", &BlockNumDigits,)
-        PARSE_MinusVal ("--blocknummodulus","%d", &BlockNumModulus,)
-        PARSE_MinusFlg ("-h"               ,, TmpInt     , 1, PrintHelp();)
-        PARSE_MinusFlg ("-help"            ,, TmpInt     , 1, PrintHelp();)
-        PARSE_MinusFlg ("--help"           ,, TmpInt     , 1, PrintHelp();)
-        PARSE_MinusFlg ("--version"        ,, TmpInt     , 1, PrintVersion();)
+        PARSE_MinusFlg ("-c"                 , TESTOP, Operation  , DoCreate , )
+        PARSE_MinusFlg ("-x"                 , TESTOP, Operation  , DoExtract, )
+        PARSE_MinusFlg ("-t"                 , TESTOP, Operation  , DoTest   , )
+        PARSE_MinusFlg ("-v"                ,, ShowFiles  , 1,)
+        PARSE_MinusFlg ("-D"                ,, ShowFiles=ArchDiag, 1, )
+        PARSE_MinusVal ("-T"                ,"%d", &NumThreads,)
+        // TBD: PARSE_MinusFlg ("-iZ"            ,,  TmpInt   , 1, IntCompType=TTCMPT_ZSTD;)
+        PARSE_MinusVal ("-iZl","%d"         , &IntComprLvl,)
+        PARSE_MinusStr ("--HashType"        , arg, HashType = HashNameToEnum(arg);)
+        PARSE_MinusVal ("--ChunkSize"       ,"%d", &ChunkSize,)
+        PARSE_MinusVal ("--BlockNumDigits"  ,"%d", &BlockNumDigits,)
+        PARSE_MinusVal ("--BlockNumModulus" ,"%d", &BlockNumModulus,)
+        PARSE_MinusFlg ("-h"                ,, TmpInt     , 1, PrintHelp();)
+        PARSE_MinusFlg ("-help"             ,, TmpInt     , 1, PrintHelp();)
+        PARSE_MinusFlg ("--help"            ,, TmpInt     , 1, PrintHelp();)
+        PARSE_MinusFlg ("--version"         ,, TmpInt     , 1, PrintVersion();)
 
         ArgError(arg);
     }
 
-    // basic operation (c,x,or t) must be set
+    // basic operation must be set
     if (Operation == DoUndef)
         PrintHelp(1);
 
