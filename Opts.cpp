@@ -148,10 +148,10 @@ void Opts::ParseCmdLine (const int argc, const char *argv[]) {
     IntCompType     = 0; // TBD: TTCMPT_NONE;
     IntComprLvl     = 2;
     BlockNumDigits  = 2;
-    BlockNumModulus = 1;
     ChunkSize       = 1 << 18;
     HashType        = HashType_MD5;
     ExtractTarget   = "PhatBakExtract";
+    BlockNumModulus = 1;
     for (int i = 0; i < BlockNumDigits; i++)
         BlockNumModulus *= 10;
 

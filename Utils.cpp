@@ -176,3 +176,8 @@ void Utils::SetModTime (const string &Name, uint64_t Time) {
     if (utimensat (AT_FDCWD, Name.c_str(), TV, AT_SYMLINK_NOFOLLOW))
         THROW_PBEXCEPTION_IO ("Can't set mod time of %s", Name.c_str()); 
 }
+
+void Utils::MakeHardLink (const string &ExistingFile, const string &NewName) {
+    if (link (ExistingFile.c_str(), NewName.c_str()) != 0)
+        THROW_PBEXCEPTION_IO ("Can't create hard link (%s) to target (%s)", NewName.c_str(), ExistingFile.c_str());
+}

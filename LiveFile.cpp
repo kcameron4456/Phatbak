@@ -45,6 +45,7 @@ LiveFile::LiveFile (const string &name) {
 LiveFile::LiveFile (const string &name              , const string &stats   , const string &ltarg
                    ,vector <ChunkInfo> &Chunks      , BlockList *ChunkBlocks
                    ,map <string, uint64_t> &ModTimes
+                   ,bool DoHLink
                    ) {
     Name = name;
     ImportInfoHeader (stats);
@@ -53,6 +54,12 @@ LiveFile::LiveFile (const string &name              , const string &stats   , co
     // if extracting, create the file now
     if (O.Operation == Opts::DoExtract) {
         Name.insert (0, O.ExtractTarget);
+
+        // create hard link
+        if (DoHLink) {
+            MakeHardLink (LinkTarget, Name);
+            return;
+        }
 
         // create whatever type of thing it is
         if (IsDir()) {

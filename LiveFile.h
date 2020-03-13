@@ -24,6 +24,7 @@ class LiveFile {
     LiveFile  (const string &name        , const string &stats   , const string &ltarg
               ,vector <ChunkInfo> &Chunks, BlockList *ChunkBlocks
               ,map <string, uint64_t> &ModTimes
+              ,bool DoHLink
               );
 
     // helper functions

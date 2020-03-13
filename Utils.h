@@ -48,6 +48,9 @@ namespace Utils {
 
     // set modification time on a file
     void SetModTime (const string &Name, uint64_t Time);
+
+    // hard link one file to another
+    void MakeHardLink (const string &ExistingFile, const string &NewName);
 }
 
 #endif // UTILS_H

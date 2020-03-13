@@ -114,6 +114,7 @@ void ArchiveRead::DoExtract () {
 
     // parse and extract all the entries in the list
     map <string, uint64_t> ModTimes;
+    map <uint64_t, string> InfoBlockIds;
     uint64_t LineNo = 0;
     string FileLine;
     while (getline (ListFile, FileLine)) {
@@ -122,9 +123,17 @@ void ArchiveRead::DoExtract () {
         // extract information about the archived file
         ArchFileRead *AF = new ArchFileRead (this, FileLine, LineNo);
 
+        bool DoHLink = InfoBlockIds.find (AF->InfoBlkNum) != InfoBlockIds.end();
+
+        string LTarget = DoHLink ? InfoBlockIds[AF->InfoBlkNum]
+                                 : AF->LinkTarget;
+
         // create extracted file
-        LiveFile *LF = new LiveFile (AF->Name, AF->Stats, AF->LinkTarget,
-                                     AF->Chunks, ChunkBlocks, ModTimes);
+        LiveFile *LF = new LiveFile (AF->Name, AF->Stats, LTarget,
+                                     AF->Chunks, ChunkBlocks, ModTimes, DoHLink);
+
+        if (!DoHLink)
+            InfoBlockIds[AF->InfoBlkNum] = LF->Name;
 
         delete LF;
         delete AF;
