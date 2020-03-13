@@ -22,7 +22,6 @@ class ChunkInfo {
         Idx  = Idx;
         Hash = hash;
     }
-    ChunkInfo (const string &finfoline);
 };
 
 class Archive {

@@ -153,7 +153,6 @@ ArchFileRead::ArchFileRead (ArchiveRead *arch, const string &ListEntry, uint64_t
     // extract information from the FInfo block
     string FInfoPacked;
     Arch->FInfoBlocks->SlurpBlock (InfoBlkNum, FInfoPacked);
-printf ("finfo slurp size = %lu\n", FInfoPacked.size());
 
     // TBD: handle decompress
 
@@ -164,9 +163,9 @@ printf ("finfo slurp size = %lu\n", FInfoPacked.size());
             THROW_PBEXCEPTION_FMT ("Illegal FInfo format: %s", Line.c_str());
         char RecType = Line[0];
         Line.erase (0,2);
-printf ("%s\n", Line.c_str());
         switch (RecType) {
-            case 'H' : Stats = Line; break;
+            case 'H' :
+                Stats = Line; break;
                 // {   vector <string> Fields = SplitStr (Line, " ");
                 //    for (auto Field : Fields) {
                 //        vector <string> Two = SplitStr (Field, ":");
@@ -179,7 +178,8 @@ printf ("%s\n", Line.c_str());
                 //    }
                 //    break;
                 //}
-            case 'L' : LinkTarget = Line; break;
+            case 'L' :
+                LinkTarget = Line; break;
 
             case 'U' :
             case 'C' : {
