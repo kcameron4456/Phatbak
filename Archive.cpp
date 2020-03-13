@@ -197,9 +197,8 @@ void ArchFileCreate::Create (LiveFile &LF) {
             FInfo += "U: " + to_string (ChnkIdx) + " " + HashHex + "\n";
         }
         LF.Close();
-    }
-    if (LF.IsSLink()) {
-        FInfo += "L: " + LF.Target + "\n";
+    } else if (LF.IsSLink()) {
+            FInfo += "L: " + LF.Target + "\n";
     }
 
     // Create the file info block in the archive

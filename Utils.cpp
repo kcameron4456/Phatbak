@@ -116,7 +116,6 @@ void Utils::CreateDir (const string Dir, bool CreateSubs) {
     if (CreateSubs && ec == errc::no_such_file_or_directory) {
         // try to create the previous directory
         auto SubDirs = SplitStr (Dir, "/");
-        auto TopDir = SubDirs.back();
         SubDirs.pop_back ();
         CreateDir (JoinStrs (SubDirs, "/"), 1);
         CreateDir (Dir);

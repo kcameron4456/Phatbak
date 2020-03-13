@@ -17,21 +17,21 @@ Create::~Create () {
 
 void Create::DoCreate (const string &Name) {
     if (O.ShowFiles)
-        printf ("%s\n", Name.c_str());
+        cout << Name << endl;
 
     // create local and archive file structures
     LiveFile LF (Name);
     ArchFileCreate *AF = new ArchFileCreate (Arch);
 
     // remember info for each file
-    FileList.push_back (Name);          // list of all files
-    FileMap [Name] = LF;                // reference file info by name
+    FileList.push_back (Name); // list of all files
+    FileMap [Name] = LF;       // reference file info by name
 
     // if the device and inode has already been seen, process hard link
     bool KeepAF = false;
     if (uint32_t INode = LF.INode()) {
         uint32_t Dev = LF.Dev();
-        if (Inodes      .find(Dev  ) != Inodes      .end() &&
+        if (Inodes      .find(  Dev) != Inodes      .end() &&
             Inodes [Dev].find(INode) != Inodes [Dev].end()) {
             // this dev/inode combo has been seen before
 
