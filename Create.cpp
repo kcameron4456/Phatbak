@@ -20,7 +20,7 @@ void Create::DoCreate (const string &Name) {
         cout << Name << endl;
 
     // create local and archive file structures
-    LiveFile LF (Name);
+    LiveFile       *LF = new LiveFile (Name);
     ArchFileCreate *AF = new ArchFileCreate (Arch);
 
     // remember info for each file
@@ -29,8 +29,8 @@ void Create::DoCreate (const string &Name) {
 
     // if the device and inode has already been seen, process hard link
     bool KeepAF = false;
-    if (uint32_t INode = LF.INode()) {
-        uint32_t Dev = LF.Dev();
+    if (uint32_t INode = LF->INode()) {
+        uint32_t Dev = LF->Dev();
         if (Inodes      .find(  Dev) != Inodes      .end() &&
             Inodes [Dev].find(INode) != Inodes [Dev].end()) {
             // this dev/inode combo has been seen before
@@ -52,9 +52,10 @@ void Create::DoCreate (const string &Name) {
     AF->Create(LF);
 
     // create sub dirs/files
-    for (auto Sub : LF.GetSubs())
+    for (auto Sub : LF->GetSubs())
         DoCreate (Sub);
 
+    delete LF;
     if (!KeepAF)
         delete AF;
 }

@@ -27,10 +27,20 @@ string Hash::GetHash () {
     return HashHex;
 }
 
+string Hash::HashStr (const string &Str) {
+    Update (Str.c_str(), Str.size());
+    return GetHash();
+}
+
 eHashType HashNameToEnum (const string &Name) {
     for (int i = 0; i < HashType_Null; i++) {
         if (Name == HashNames [i])
             return (eHashType) i;
     }
     THROW_PBEXCEPTION_FMT ("Unrecognized Hash Algorythm: " + Name);
+}
+
+string HashStr (eHashType T, const string &Str) {
+    Hash Hasher(T);
+    return Hasher.HashStr (Str);
 }

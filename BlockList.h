@@ -1,9 +1,9 @@
 #ifndef BLOCKLIST_H
 #define BLOCKLIST_H
 
-#include "LiveFile.h"
 #include "RepoInfo.h"
 #include "Opts.h"
+#include "Types.h"
 
 #include <string>
 #include <vector>
@@ -12,7 +12,6 @@
 #include <fstream>
 using namespace std;
 
-typedef uint64_t BlockIdxType;
 class BlockRangeTuple {
     public:
     BlockIdxType min, max;

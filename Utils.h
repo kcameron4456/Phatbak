@@ -30,11 +30,18 @@ namespace Utils {
     // open file stream for output
     fstream OpenWriteStream (const string &Name);
 
+    // open file stream for binary output
+    FILE * OpenWriteBin (const string &Name);
+
     // read a line from a file stream, optionally die on eof
     string ReadLine (fstream &Stream, bool DieOnEOF = 1);
 
     // read unformatted data into byte buffer
     int ReadBinary (FILE *F, char *Buf, int BufSize);
+
+    // read unformatted data into byte buffer
+    void WriteBinary (FILE *F, const char *Buf, unsigned BufSize);
+    void WriteBinary (FILE *F, const string &Str);
 
     // create a directory - optionally create needed subdirs
     void CreateDir (const string Dir, bool CreateSubs = false);

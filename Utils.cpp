@@ -105,6 +105,13 @@ fstream Utils::OpenWriteStream (const string &Name) {
     return Strm;
 }
 
+FILE * Utils::OpenWriteBin (const string &Name) {
+    FILE* F;
+    if (!(F = fopen (Name.c_str(), "wb")))
+        THROW_PBEXCEPTION_IO ("Can't open %s for write", Name.c_str());
+    return F;
+}
+
 string Utils::ReadLine (fstream &Stream, bool DieOnEOF) {
     string Line;
     getline (Stream, Line);
@@ -120,6 +127,15 @@ int Utils::ReadBinary (FILE *F, char *Buf, int BufSize) {
     if ((BytesRead = fread (Buf, 1, BufSize, F)) < 0)
         THROW_PBEXCEPTION_IO ("Read failed");
     return BytesRead;
+}
+
+void Utils::WriteBinary (FILE *F, const char *Buf, unsigned BufSize) {
+    if (fwrite (Buf, 1, BufSize, F) != BufSize)
+        THROW_PBEXCEPTION_IO ("Write failed");
+}
+
+void Utils::WriteBinary (FILE *F, const string &Str) {
+    WriteBinary (F, Str.c_str(), Str.size());
 }
 
 void Utils::CreateDir (const string Dir, bool CreateSubs) {

@@ -120,7 +120,15 @@ void ArchiveRead::DoExtract () {
     uint64_t LineNo = 0;
     while (getline (ListFile, FileLine)) {
         LineNo ++;
+        // extract information about the archived file
         ArchFileRead *AF = new ArchFileRead (this, FileLine, LineNo);
+
+        // create a live file object for the extracted file
+printf ("ArchiveRead::DoExtract Name=%s\n", AF->Name.c_str());
+        LiveFile *LF = new LiveFile (AF->Name, AF->Stats, AF->LinkTarget, AF->Chunks, ChunkBlocks);
+        LF->ImportInfoHeader (AF->Stats);
+
+        delete LF;
         delete AF;
     }
 
@@ -166,25 +174,14 @@ ArchFileRead::ArchFileRead (ArchiveRead *arch, const string &ListEntry, uint64_t
         switch (RecType) {
             case 'H' :
                 Stats = Line; break;
-                // {   vector <string> Fields = SplitStr (Line, " ");
-                //    for (auto Field : Fields) {
-                //        vector <string> Two = SplitStr (Field, ":");
-                //        if (Two.size() != 2)
-                //            THROW_PBEXCEPTION_FMT ("Illegal header field : %s", Field.c_str());
-                //        string &Name = Two[0];
-                //        string &Val  = Two[1];
-                //        if (Name == "mode") 
 
-                //    }
-                //    break;
-                //}
             case 'L' :
                 LinkTarget = Line; break;
 
             case 'U' :
             case 'C' : {
                 vector <string> Parts = SplitStr (Line, " ");
-                DataChnks.emplace_back (RecType, stoull (Parts[0].c_str()), Parts[1]);
+                Chunks.emplace_back (RecType, stoull (Parts[0].c_str()), Parts[1], O.HashType);
                 break;
                 }
 
@@ -208,18 +205,18 @@ ArchFileCreate::ArchFileCreate (ArchiveCreate *arch) {
     Mtx.lock();
 }
 
-void ArchFileCreate::Create (LiveFile &LF) {
-    Name  = LF.Name;
-    Stats = LF.MakeInfoHeader ();
+void ArchFileCreate::Create (LiveFile *LF) {
+    Name  = LF->Name;
+    Stats = LF->MakeInfoHeader ();
 
     // Create Finfo file contents
     string FInfo = "H-" + Stats + "\n";
 
     // For files, create chunks and FInfo entries
-    if (LF.IsFile()) {
+    if (LF->IsFile()) {
         char Chunk [O.ChunkSize];
-        LF.OpenRead();
-        while (int RdSize = LF.ReadChunk (Chunk)) {
+        LF->OpenRead();
+        while (int RdSize = LF->ReadChunk (Chunk)) {
             // write the chunk to the archive
             BlockIdxType ChnkIdx = ArchCreate->ChunkBlocks->Alloc();
             FILE *ChunkF = ArchCreate->ChunkBlocks->OpenBlockFile (ChnkIdx, "wb");
@@ -235,9 +232,9 @@ void ArchFileCreate::Create (LiveFile &LF) {
             // add chunk to finfo
             FInfo += "U-" + to_string (ChnkIdx) + " " + HashHex + "\n";
         }
-        LF.Close();
-    } else if (LF.IsSLink()) {
-        FInfo += "L-" + LF.Target + "\n";
+        LF->Close();
+    } else if (LF->IsSLink()) {
+        FInfo += "L-" + LF->LinkTarget + "\n";
     }
 
     // Create the file info block in the archive
@@ -263,8 +260,8 @@ void ArchFileCreate::Create (LiveFile &LF) {
 }
 
 // link to previously archived file
-void ArchFileCreate::CreateLink (LiveFile &LF, ArchFileCreate *Prev) {
-    Name  = LF.Name;
+void ArchFileCreate::CreateLink (LiveFile *LF, ArchFileCreate *Prev) {
+    Name  = LF->Name;
 
     // wait for processing of original file to complete
     Prev->Mtx.lock();

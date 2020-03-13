@@ -5,24 +5,13 @@
 #include "RepoInfo.h"
 #include "BlockList.h"
 #include "Opts.h"
+#include "Types.h"
 
 #include <string>
 #include <vector>
 #include <stdio.h>
 #include <mutex>
 using namespace std;
-
-class ChunkInfo {
-    public:
-    char         Comp;
-    BlockIdxType Idx;
-    string       Hash;
-    ChunkInfo (char comp, BlockIdxType idx, const string& hash) {
-        Comp = comp;
-        Idx  = Idx;
-        Hash = hash;
-    }
-};
 
 class Archive {
     public:
@@ -74,7 +63,7 @@ class ArchFile {
     mutex              Mtx;
     string             Stats;
     string             LinkTarget;
-    vector <ChunkInfo> DataChnks;
+    vector <ChunkInfo> Chunks;
 
      ArchFile (Archive *arch);
     ~ArchFile ();
@@ -103,8 +92,8 @@ class ArchFileCreate {
 
     ArchFileCreate (ArchiveCreate *arch);
 
-    void Create     (LiveFile &lf);                       // add file to archive
-    void CreateLink (LiveFile &lf, ArchFileCreate *Prev); // link to previously archived file
+    void Create     (LiveFile *lf);                       // add file to archive
+    void CreateLink (LiveFile *lf, ArchFileCreate *Prev); // link to previously archived file
 };
 
 #endif // ARCHIVE_H

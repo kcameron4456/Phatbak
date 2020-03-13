@@ -1,6 +1,8 @@
 #include "LiveFile.h"
 #include "Logging.h"
 #include "Opts.h"
+#include "Utils.h"
+using namespace Utils;
 
 #include <string.h>
 #include <string>
@@ -11,12 +13,9 @@
 #include <fcntl.h>
 using namespace std;
 
-LiveFile::LiveFile (const string &name) {
+LiveFile::LiveFile (const string &name) { // for create
     Name = name;
-    Init ();
-}
 
-void LiveFile::Init () {
     FD = -1;
 
     // get file info
@@ -35,9 +34,51 @@ void LiveFile::Init () {
             THROW_PBEXCEPTION_IO ("Can't read symbolic link '%s'", Name.c_str());
         if (TargSize >= 1000)
             THROW_PBEXCEPTION ("Symbolic link '%s' too long", Name.c_str());
-        Target = string (Targ, TargSize);
+        LinkTarget = string (Targ, TargSize);
     } else {
         THROW_PBEXCEPTION ("File %s is an unsupported type", Name.c_str());
+    }
+}
+
+LiveFile::LiveFile (const string &name        , const string &stats   , const string &ltarg,
+                    vector <ChunkInfo> &Chunks, BlockList *ChunkBlocks) { // for extract, etc
+    Name = name;
+    ImportInfoHeader (stats);
+    LinkTarget = ltarg;
+
+    // if extracting, create the file now
+    if (O.Operation == Opts::DoExtract) {
+        // remove leading "/" from file name
+        if (Name[0] == '/')
+            Name.erase (0,1);
+        Name.replace (0, 4, "XXXX"); // don't use home as the root name when debugging: too dangerous
+
+printf ("Name=%s stats=%s\n", Name.c_str(), stats.c_str());
+        // create whatever type of thing it is
+        if (IsDir()) {
+            CreateDir (Name, 1);
+        } else if (IsSLink()) {
+            if (symlink (LinkTarget.c_str(), Name.c_str()) < 0)
+                THROW_PBEXCEPTION_IO ("Can't create symbolic link: %s", Name.c_str());
+        } else if (IsFifo()) {
+            if (mkfifo (Name.c_str(), Stats.st_mode) < 0)
+                THROW_PBEXCEPTION_IO ("Can't create fifo: %s", Name.c_str());
+        } else if (IsSocket()) {
+            // not yet - might be complicated
+        } else if (IsFile()) {
+            FILE *F = OpenWriteBin (Name);
+            for (auto Chunk: Chunks) {
+                string ChunkData;
+                ChunkBlocks->SlurpBlock (Chunk.Idx, ChunkData);
+
+                string ChunkDataHash = HashStr (Chunk.HashType, ChunkData);
+                if (ChunkDataHash != Chunk.Hash)
+                    THROW_PBEXCEPTION_FMT ("Hash mismatch on data chunk #%llu", Chunk.Idx);
+
+                WriteBinary (F, ChunkData);
+            }
+            fclose (F);
+        }
     }
 }
 
@@ -52,16 +93,33 @@ vector <string> LiveFile::GetSubs () {
 
 string LiveFile::MakeInfoHeader () const {
     stringstream res;
-    //res << "dev:"   << hex << Stats.st_dev  << " ";  Not Needed?
-    //res << "inode:" << hex << INode()       << " ";
     res << "mode:"  << hex << Stats.st_mode << " ";
     res << "uid:"   << hex << Stats.st_uid  << " ";
     res << "gid:"   << hex << Stats.st_gid  << " ";
     res << "size:"  <<        Stats.st_size << " "; // keep size in decimal to make it easier to read and debug
     res << "mtime:" << hex << mTime()       << " ";
-    res << "ctime:" << hex << cTime();
 
     return res.str();
+}
+
+void LiveFile::ImportInfoHeader (const string &Hdr) {
+    vector <string> Fields = SplitStr (Hdr, " ");
+    for (auto Field : Fields) {
+        vector <string> Two = SplitStr (Field, ":");
+        if (Two.size() != 2)
+            THROW_PBEXCEPTION_FMT ("Illegal header field : %s", Field.c_str());
+        string &Name = Two[0];
+        string &Val  = Two[1];
+             if (Name == "mode" ) Stats.st_mode = strtoull (Val.c_str(), NULL, 16);
+        else if (Name == "uid"  ) Stats.st_uid  = strtoull (Val.c_str(), NULL, 16);
+        else if (Name == "gid"  ) Stats.st_gid  = strtoull (Val.c_str(), NULL, 16);
+        else if (Name == "size" ) Stats.st_size = strtoull (Val.c_str(), NULL, 10);
+        else if (Name == "mtime") {
+            uint64_t ns           = strtoull (Val.c_str(), NULL, 16);
+            Stats.st_mtime        = ns / 1000000000Ull;
+            Stats.st_mtim.tv_nsec = ns % 1000000000Ull;
+        }
+    }
 }
 
 void SplitFileName (const string &RawName, string &Path, string &Name) {

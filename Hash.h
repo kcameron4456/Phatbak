@@ -29,8 +29,11 @@ class Hash {
     Hash (eHashType T);
     void   Update  (const char *Buf, int BufSize);
     string GetHash ();
+    string HashStr (const string &Str);
 };
 
 eHashType HashNameToEnum (const string &Name);
+
+string HashStr (eHashType T, const string &Str);
 
 #endif // HASH_H
