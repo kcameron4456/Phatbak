@@ -48,10 +48,7 @@ LiveFile::LiveFile (const string &name        , const string &stats   , const st
 
     // if extracting, create the file now
     if (O.Operation == Opts::DoExtract) {
-        // remove leading "/" from file name
-        if (Name[0] == '/')
-            Name.erase (0,1);
-        Name.replace (0, 4, "XXXX"); // don't use home as the root name when debugging: too dangerous
+        Name.insert (0, O.ExtractTarget);
 
 printf ("Name=%s stats=%s\n", Name.c_str(), stats.c_str());
         // create whatever type of thing it is
@@ -70,6 +67,8 @@ printf ("Name=%s stats=%s\n", Name.c_str(), stats.c_str());
             for (auto Chunk: Chunks) {
                 string ChunkData;
                 ChunkBlocks->SlurpBlock (Chunk.Idx, ChunkData);
+
+                // TBD: handle decompress
 
                 string ChunkDataHash = HashStr (Chunk.HashType, ChunkData);
                 if (ChunkDataHash != Chunk.Hash)

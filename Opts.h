@@ -32,6 +32,7 @@ class Opts {
     int       NumThreads;       // initial number of threads to launch
     int       IntCompType;      // type of per-file-block compression to use (must be in TTCompType_e)
     int       IntComprLvl;      // compression effort
+    string    ExtractTarget;    // directory into which to place files extracted from an Archive
 
     enum      {DoUndef  , DoCreate,
                DoExtract, DoTest  } Operation; // what to do

@@ -140,19 +140,20 @@ static int ParseSize (const char *SizeStr) {
 #define TESTOP {if (Operation != DoUndef) PrintOpHelp();}
 void Opts::ParseCmdLine (const int argc, const char *argv[]) {
     // apply defaults
-    VersionMajor = VERSION_MAJOR;
-    VersionMinor = VERSION_MINOR;
-    Operation    = DoUndef;
-    ShowFiles    = 0;
-    NumThreads   = 200;
-    IntCompType  = 0; // TBD: TTCMPT_NONE;
-    IntComprLvl  = 2;
+    VersionMajor    = VERSION_MAJOR;
+    VersionMinor    = VERSION_MINOR;
+    Operation       = DoUndef;
+    ShowFiles       = 0;
+    NumThreads      = 200;
+    IntCompType     = 0; // TBD: TTCMPT_NONE;
+    IntComprLvl     = 2;
     BlockNumDigits  = 2;
     BlockNumModulus = 1;
+    ChunkSize       = 1 << 16;
+    HashType        = HashType_MD5;
+    ExtractTarget   = "PhatBakExtract";
     for (int i = 0; i < BlockNumDigits; i++)
         BlockNumModulus *= 10;
-    ChunkSize    = 1 << 16;
-    HashType     = HashType_MD5;
 
     // save command line
     int argidx;
