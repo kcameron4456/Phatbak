@@ -110,29 +110,27 @@ void ArchiveRead::ParseOptions () {
 
 void ArchiveRead::DoExtract () {
     // open the file list
-    string ListFileN = ArchDirPath + "/List";
-    ifstream ListFile (ListPath);
-    if (ListFile.fail())
-        THROW_PBEXCEPTION_IO ("ArchiveRead::DoExtract - Can't open %s for read", ListPath.c_str());
+    auto ListFile = OpenReadStream (ListPath);
 
     // parse and extract all the entries in the list
-    string FileLine;
-    uint64_t LineNo = 0;
     map <string, uint64_t> ModTimes;
+    uint64_t LineNo = 0;
+    string FileLine;
     while (getline (ListFile, FileLine)) {
         LineNo ++;
+
         // extract information about the archived file
         ArchFileRead *AF = new ArchFileRead (this, FileLine, LineNo);
 
-        // create a live file object for the extracted file
-        LiveFile *LF = new LiveFile (AF->Name, AF->Stats, AF->LinkTarget, AF->Chunks, ChunkBlocks, ModTimes);
-        LF->ImportInfoHeader (AF->Stats);
+        // create extracted file
+        LiveFile *LF = new LiveFile (AF->Name, AF->Stats, AF->LinkTarget,
+                                     AF->Chunks, ChunkBlocks, ModTimes);
 
         delete LF;
         delete AF;
     }
 
-    // set modificaton times that needed to be defered
+    // handle defered modification times
     for (auto& [Name, Time]: ModTimes)
         SetModTime (Name, Time);
 
