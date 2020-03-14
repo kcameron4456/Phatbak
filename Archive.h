@@ -87,13 +87,15 @@ class ArchFileCreate {
     char              InfoBlkComp;
     string            InfoBlkHash;
     mutex             Mtx;
+    LiveFile         *LF;
     string            Stats;
     vector <uint64_t> DataBlkNs;
 
-    ArchFileCreate (ArchiveCreate *arch);
+    ArchFileCreate (ArchiveCreate *arch, LiveFile *lf);
 
-    void Create     (LiveFile *lf);                       // add file to archive
-    void CreateLink (LiveFile *lf, ArchFileCreate *Prev); // link to previously archived file
+    void Create     (bool Keep);            // add file to archive
+    void CreateJob  (bool Keep);            // add file to archive (runs within thread)
+    void CreateLink (ArchFileCreate *Prev); // link to previously archived file
 };
 
 #endif // ARCHIVE_H

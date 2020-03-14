@@ -144,13 +144,14 @@ void Opts::ParseCmdLine (const int argc, const char *argv[]) {
     VersionMinor    = VERSION_MINOR;
     Operation       = DoUndef;
     ShowFiles       = 0;
-    NumThreads      = 200;
+    NumThreads      = 0;
     IntCompType     = 0; // TBD: TTCMPT_NONE;
     IntComprLvl     = 2;
     BlockNumDigits  = 2;
     ChunkSize       = 1 << 18;
     HashType        = HashType_MD5;
     ExtractTarget   = "PhatBakExtract";
+    DebugPrint      = 0;
     BlockNumModulus = 1;
     for (int i = 0; i < BlockNumDigits; i++)
         BlockNumModulus *= 10;
@@ -213,10 +214,11 @@ void Opts::ParseCmdLine (const int argc, const char *argv[]) {
         PARSE_MinusVal ("--ChunkSize"       ,"%d", &ChunkSize,)
         PARSE_MinusVal ("--BlockNumDigits"  ,"%d", &BlockNumDigits,)
         PARSE_MinusVal ("--BlockNumModulus" ,"%d", &BlockNumModulus,)
-        PARSE_MinusFlg ("-h"                ,, arg     , arg, PrintHelp();)
-        PARSE_MinusFlg ("-help"             ,, arg     , arg, PrintHelp();)
-        PARSE_MinusFlg ("--help"            ,, arg     , arg, PrintHelp();)
-        PARSE_MinusFlg ("--version"         ,, arg     , arg, PrintVersion();)
+        PARSE_MinusFlg ("-h"                ,, arg       , arg, PrintHelp();)
+        PARSE_MinusFlg ("-help"             ,, arg       , arg, PrintHelp();)
+        PARSE_MinusFlg ("--help"            ,, arg       , arg, PrintHelp();)
+        PARSE_MinusFlg ("--version"         ,, arg       , arg, PrintVersion();)
+        PARSE_MinusFlg ("--debug"           ,, DebugPrint,   1, ;)
 
         ArgError(arg);
     }

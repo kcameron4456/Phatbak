@@ -7,9 +7,10 @@ DEFTARGS = PhatBak
 #VERSION_ARG = -DVERSION_MAJOR=$(VERSION_MAJOR) -DVERSION_MINOR=$(VERSION_MINOR)
 
 MYCFLAGS = -Wall -Werror
+DBGMSG = -DDBGMSG
 ifdef DBG
     # DBG=1 creates debuggable code else fastest
-    MYCFLAGS  += -g -O0 -fweb -DDBGMSG -DLOCKCHECK
+    MYCFLAGS  += -g -O0 -fweb $(DBGMSG) -DLOCKCHECK
 else
     MYCFLAGS  += -O3 -funroll-loops -finline-functions -fno-diagnostics-color
 endif

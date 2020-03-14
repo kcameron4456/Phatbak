@@ -20,12 +20,13 @@ void Create::DoCreate (const string &Name) {
         cout << Name << endl;
 
     // create local and archive file structures
-    LiveFile       *LF = new LiveFile (Name);
-    ArchFileCreate *AF = new ArchFileCreate (Arch);
+    LiveFile       *LF      = new LiveFile (Name);
+    ArchFileCreate *AF      = new ArchFileCreate (Arch, LF);
+    vector <string> SubDirs = LF->GetSubs();
 
     // remember info for each file
-    FileList.push_back (Name); // list of all files
-    FileMap [Name] = LF;       // reference file info by name
+    //FileList.push_back (Name); // list of all files
+    //FileMap [Name] = LF;       // reference file info by name
 
     // if the device and inode has already been seen, process hard link
     bool KeepAF = false;
@@ -37,7 +38,7 @@ void Create::DoCreate (const string &Name) {
 
             // create the link
             ArchFileCreate *PrevAF = Inodes [Dev][INode];
-            AF->CreateLink (LF, PrevAF);
+            AF->CreateLink (PrevAF);
 
             // that's all
             return;
@@ -49,13 +50,9 @@ void Create::DoCreate (const string &Name) {
     }
 
     // create the archived file
-    AF->Create(LF);
+    AF->Create(KeepAF);
 
     // create sub dirs/files
-    for (auto Sub : LF->GetSubs())
+    for (auto Sub : SubDirs)
         DoCreate (Sub);
-
-    delete LF;
-    if (!KeepAF)
-        delete AF;
 }

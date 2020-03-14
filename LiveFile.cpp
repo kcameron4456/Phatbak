@@ -15,6 +15,7 @@ using namespace std;
 
 // for create
 LiveFile::LiveFile (const string &name) {
+    DBGCTOR;
     Name = name;
 
     FD = -1;
@@ -47,6 +48,7 @@ LiveFile::LiveFile (const string &name              , const string &stats   , co
                    ,map <string, uint64_t> &ModTimes
                    ,bool DoHLink
                    ) {
+    DBGCTOR;
     Name = name;
     ImportInfoHeader (stats);
     LinkTarget = ltarg;
@@ -110,6 +112,10 @@ LiveFile::LiveFile (const string &name              , const string &stats   , co
         else
             SetModTime (Name, mTime());
     }
+}
+
+LiveFile::~LiveFile () {
+    DBGDTOR;
 }
 
 vector <string> LiveFile::GetSubs () {

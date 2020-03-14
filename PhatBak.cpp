@@ -4,12 +4,15 @@
 #include "Logging.h"
 #include "Opts.h"
 #include "Utils.h"
+#include "ThreadPool.h"
 
 #include <stdio.h>
 
 int main (int argc, const char **argv) {
     try {
         O.ParseCmdLine (argc, argv);
+
+        ThreadPool.AddThreads (O.NumThreads);
 
         if (O.Operation == Opts::DoCreate) {
             Create *C = new Create;

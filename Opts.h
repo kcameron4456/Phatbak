@@ -29,10 +29,11 @@ class Opts {
     int       ChunkSize;        // Max size of data blocks into which file data are stored
     bool      ShowFiles;        // Show file names as they are archived or extracted
     bool      ArchDiag;         // Show diagnostic for archive file blocks in Test mode
-    int       NumThreads;       // initial number of threads to launch
+    int       NumThreads;       // number of helper threads to launch
     int       IntCompType;      // type of per-file-block compression to use (must be in TTCompType_e)
     int       IntComprLvl;      // compression effort
     string    ExtractTarget;    // directory into which to place files extracted from an Archive
+    bool      DebugPrint;       // true output trace info for debug
 
     enum      {DoUndef  , DoCreate,
                DoExtract, DoTest  } Operation; // what to do

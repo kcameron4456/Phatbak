@@ -27,6 +27,8 @@ class LiveFile {
               ,bool DoHLink
               );
 
+    ~LiveFile ();
+
     // helper functions
     inline bool IsFile   () const {return S_ISREG  (Stats.st_mode);}
     inline bool IsDir    () const {return S_ISDIR  (Stats.st_mode);}

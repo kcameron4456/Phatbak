@@ -153,6 +153,8 @@ void Utils::CreateDir (const string Dir, bool CreateSubs) {
     error_code ec;
     if (fs::create_directory(Dir, ec))
         return;
+    if (!ec)
+        return;
 
     // on fail, see if we want to create a subdir
     if (CreateSubs && ec == errc::no_such_file_or_directory) {
@@ -161,6 +163,8 @@ void Utils::CreateDir (const string Dir, bool CreateSubs) {
         SubDirs.pop_back ();
         CreateDir (JoinStrs (SubDirs, "/"), 1);
         CreateDir (Dir);
+    } else if (ec == errc::file_exists) {
+        // ignore if the directory was created by someone else since we began
     } else {
         THROW_PBEXCEPTION_IO ("Can't create directory %s", Dir.c_str());
     }

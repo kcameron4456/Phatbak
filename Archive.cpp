@@ -1,6 +1,7 @@
 #include "Archive.h"
 #include "Logging.h"
 #include "Utils.h"
+#include "ThreadPool.h"
 using namespace Utils;
 
 #include <string>
@@ -9,6 +10,7 @@ using namespace Utils;
 namespace fs = std::filesystem;
 
 Archive::Archive(RepoInfo *repo, const string &name) {
+    DBGCTOR;
     Repo         = repo;
     Name         = name;
     ArchDirPath  = Repo->Name + "/" + Name;
@@ -21,11 +23,13 @@ Archive::Archive(RepoInfo *repo, const string &name) {
 }
 
 Archive::~Archive() {
+    DBGDTOR;
     LogFile .close();
     ListFile.close();
 }
 
 ArchiveRead::ArchiveRead (RepoInfo *repo, const string &name, Opts &o) : Archive (repo, name) {
+    DBGCTOR;
     O = o;
     ParseOptions ();
 
@@ -34,9 +38,11 @@ ArchiveRead::ArchiveRead (RepoInfo *repo, const string &name, Opts &o) : Archive
 }
 
 ArchiveRead::~ArchiveRead() {
+    DBGDTOR;
 }
 
 ArchiveCreate::ArchiveCreate (RepoInfo *repo, const string &name) : Archive (repo, name) {
+    DBGCTOR;
     Repo = repo;
     Name = name;
 
@@ -65,6 +71,10 @@ ArchiveCreate::ArchiveCreate (RepoInfo *repo, const string &name) : Archive (rep
 }
 
 ArchiveCreate::~ArchiveCreate () {
+    DBGDTOR;
+
+    ThreadPool.WaitIdle ();
+
     time_t EndTime = time(NULL);
     LogFile << "Backup Ended At: " << ctime(&EndTime) << endl;
 
@@ -147,13 +157,18 @@ void ArchiveRead::DoExtract () {
 }
 
 ArchFile::ArchFile (Archive *arch) {
+    DBGCTOR;
     Arch = arch;
 }
 
 ArchFile::~ArchFile () {
+    DBGDTOR;
 }
 
 ArchFileRead::ArchFileRead (ArchiveRead *arch, const string &ListEntry, uint64_t LineNo) : ArchFile (arch) {
+    DBGCTOR;
+
+    Arch = arch;
     // parse file list entry
     // separate filename from attributes
     vector <string> FirstCut = SplitStr (ListEntry, " /../ ");
@@ -203,6 +218,7 @@ ArchFileRead::ArchFileRead (ArchiveRead *arch, const string &ListEntry, uint64_t
 }
 
 ArchFileRead::~ArchFileRead () {
+    DBGDTOR;
 }
 
 void ArchiveCreate::PushFileList (const string &Fname, BlockIdxType Block, char Comp, const string &Hash) {
@@ -210,14 +226,17 @@ void ArchiveCreate::PushFileList (const string &Fname, BlockIdxType Block, char 
     ListFile << FileEntry;
 }
 
-ArchFileCreate::ArchFileCreate (ArchiveCreate *arch) {
+ArchFileCreate::ArchFileCreate (ArchiveCreate *arch, LiveFile *lf) {
+    DBGCTOR;
     ArchCreate = arch;
+    LF         = lf;
+    Name       = LF->Name;
 
     Mtx.lock();
 }
 
-void ArchFileCreate::Create (LiveFile *LF) {
-    Name  = LF->Name;
+void ArchFileCreate::CreateJob (bool Keep) {
+    // get string version of stats for FInfo
     Stats = LF->MakeInfoHeader ();
 
     // Create Finfo file contents
@@ -239,6 +258,8 @@ void ArchFileCreate::Create (LiveFile *LF) {
             Hash Hasher (O.HashType);
             Hasher.Update (Chunk, RdSize);
             string HashHex = Hasher.GetHash();
+
+            // TBD: compression
 
             // add chunk to finfo
             FInfo += "U-" + to_string (ChnkIdx) + " " + HashHex + "\n";
@@ -268,12 +289,29 @@ void ArchFileCreate::Create (LiveFile *LF) {
 
     // flag completion
     Mtx.unlock();
+
+    // we're done with the Live File
+    delete LF;
+
+    // delete this if we know it won't be needed again
+    if (!Keep)
+        delete this;
+}
+
+void ArchFileCreate::Create (bool Keep) {
+    if (O.NumThreads) {
+        JobCtrl *Job = ThreadPool.AllocThread();
+        Job->JobType = JobCtrl::CreateFile;
+        Job->JobInfo.CreateFile.AF   = this;
+        Job->JobInfo.CreateFile.Keep = Keep;
+        Job->Go();
+    } else {
+        CreateJob (Keep);
+    }
 }
 
 // link to previously archived file
-void ArchFileCreate::CreateLink (LiveFile *LF, ArchFileCreate *Prev) {
-    Name  = LF->Name;
-
+void ArchFileCreate::CreateLink (ArchFileCreate *Prev) {
     // wait for processing of original file to complete
     Prev->Mtx.lock();
 
@@ -282,6 +320,9 @@ void ArchFileCreate::CreateLink (LiveFile *LF, ArchFileCreate *Prev) {
     // release prev file
     Prev->Mtx.unlock();
 
-    // release this file
-    Mtx.unlock();
+    // we're done with the Live File
+    delete LF;
+
+    // this archive file won't be used again
+    delete this;
 }

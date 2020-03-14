@@ -139,17 +139,11 @@ string BlockList::Idx2FileName (BlockIdxType Idx) {
 }
 
 FILE *BlockList::OpenBlockFile (BlockIdxType Idx, const char *mode) {
-    string BlockFileName = TopDir;
-
     // create subdirs
-    vector <string> SubDirs = GetSubDirs (Idx);
-    for (auto SubDir : SubDirs) {
-        BlockFileName += "/" + SubDir;
-        if (!fs::exists (BlockFileName) && !fs::create_directory (BlockFileName))
-            THROW_PBEXCEPTION_IO ("Can't create directory: " + BlockFileName);
-    }
+    string SubDirName = Idx2DirString(Idx);
+    Utils::CreateDir (SubDirName, true);
 
-    BlockFileName += "/" + to_string (Idx);
+    string BlockFileName = SubDirName + "/" + to_string (Idx);
     FILE *BlkFile = fopen (BlockFileName.c_str(), mode);
     if (!BlkFile)
         THROW_PBEXCEPTION_IO ("Can't open block file: " + BlockFileName);
