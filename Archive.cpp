@@ -221,9 +221,12 @@ ArchFileRead::~ArchFileRead () {
     DBGDTOR;
 }
 
+mutex PushFileListMtx;
 void ArchiveCreate::PushFileList (const string &Fname, BlockIdxType Block, char Comp, const string &Hash) {
     string FileEntry = Fname + " /../ " + to_string(Block) + " " + Comp + " " + Hash + "\n";
+    PushFileListMtx.lock();
     ListFile << FileEntry;
+    PushFileListMtx.unlock();
 }
 
 ArchFileCreate::ArchFileCreate (ArchiveCreate *arch, LiveFile *lf) {

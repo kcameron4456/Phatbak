@@ -57,6 +57,12 @@ LiveFile::LiveFile (const string &name              , const string &stats   , co
     if (O.Operation == Opts::DoExtract) {
         Name.insert (0, O.ExtractTarget);
 
+        // break name into parts then create the directory containing the name
+        vector <string> Parts = SplitStr (Name, "/");
+        Parts.pop_back();
+        string Parent = JoinStrs (Parts, "/");
+        CreateDir (Parent, 1);
+
         // create hard link
         if (DoHLink) {
             MakeHardLink (LinkTarget, Name);

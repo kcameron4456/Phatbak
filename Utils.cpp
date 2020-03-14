@@ -140,7 +140,10 @@ void Utils::WriteBinary (FILE *F, const string &Str) {
     WriteBinary (F, Str.c_str(), Str.size());
 }
 
+recursive_mutex CreateDirMtx; // TBD: debug problems with multiple threads creating dirs
 void Utils::CreateDir (const string Dir, bool CreateSubs) {
+    unique_lock <recursive_mutex> lock (CreateDirMtx);
+
     // we're finished if the directory already exists
     if (Dir == "" || fs::is_directory (Dir))
         return;
