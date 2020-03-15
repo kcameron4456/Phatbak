@@ -44,7 +44,7 @@ class PB_Exception {
     void MakeMessage (int SrcLine, const char *SrcFile, const string &fmt, va_list args) {
         char LBuf [100];
         snprintf (LBuf, 99, "%d", SrcLine);
-        string NewFmt = (string)SrcFile + ":" + LBuf + " ** " + MsgType + fmt;
+        string NewFmt = (string)SrcFile + ":" + LBuf + ": " + MsgType + fmt;
 
         char cmsg [4000];
         vsnprintf (cmsg, 999, NewFmt.c_str(), args);
@@ -92,7 +92,7 @@ class PB_ExceptionIO : public PB_Exception {
         exit (ErrNo);
     }
     PB_ExceptionIO (int SrcLine, const char *SrcFile, const string &fmt, ...) {
-        MsgType = "System IO Error: ";
+        MsgType = "IO Error: ";
         ErrNo = errno;
         PB_VARGS(fmt);
         MakeMessage (SrcLine, SrcFile, fmt, args);

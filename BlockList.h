@@ -34,14 +34,15 @@ class BlockList {
      BlockList (const string &topdir, const Opts &o);
     ~BlockList ();
 
-    BlockIdxType    Alloc          ();
-    void            Free           (BlockIdxType Idx);
-    vector <string> GetSubDirs     (BlockIdxType Idx);
-    string          Idx2DirString  (BlockIdxType Idx);
-    string          Idx2FileName   (BlockIdxType Idx);
-    FILE           *OpenBlockFile  (BlockIdxType Idx, const char *mode);
-    fstream        OpenReadStream  (BlockIdxType Idx);
-    void           SlurpBlock      (BlockIdxType Idx, string &BufStr);
+    BlockIdxType    Alloc           ();
+    void            Free            (BlockIdxType Idx);
+    vector <string> GetSubDirs      (BlockIdxType Idx);
+    string          Idx2DirString   (BlockIdxType Idx);
+    string          Idx2FileName    (BlockIdxType Idx);
+    fstream         OpenReadStream  (BlockIdxType Idx);
+    void            SlurpBlock      (BlockIdxType Idx,       string &BufStr);
+    void            SpitBlock       (BlockIdxType Idx, const string &BufStr);
+    BlockIdxType    SpitNewBlock    (                  const string &BufStr);
 };
 
 #endif // BLOCKLIST_H

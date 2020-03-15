@@ -13,7 +13,7 @@ using namespace std;
 class LiveFile {
     public:
     string      Name;       // Full pathname for the file
-    int         FD;         // File descriptor for I/O
+    FILE       *F;          // File for i/o
     struct stat Stats;      // File status info from lstat() call
     string      LinkTarget; // Target of soft link
 
@@ -23,7 +23,7 @@ class LiveFile {
     // for extract, etc
     LiveFile  (const string &name        , const string &stats   , const string &ltarg
               ,vector <ChunkInfo> &Chunks, BlockList *ChunkBlocks
-              ,map <string, uint64_t> &ModTimes
+              ,map <string, uint64_t> &ModTimes, mutex *ModTimesMtx
               ,bool DoHLink
               );
 
@@ -49,13 +49,14 @@ class LiveFile {
     string MakeInfoHeader                    () const ;
     void   ImportInfoHeader (const string &Hdr);
 
-    int      Read (char *Buf, int ReqSize);
-    int      ReadChunk (char *Chunk);
-    void     OpenRead();
+    void     OpenRead  ();
     void     OpenWrite ();
-    void     Open();
-    void     Close();
-
+    void     Close     ();
+    int      Read      (char         *Buf, int ReqSize);
+    int      ReadChunk (char       *Chunk);
+    int      ReadChunk (string     &Chunk);
+    void     Write     (const string &Str);
+    void     Write     (char         *Buf, int BufSize);
 };
 
 void SplitFileName (const string &RawName, string &DirPart, string &FilePart);

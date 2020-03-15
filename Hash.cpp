@@ -19,16 +19,17 @@ void Hash::Update (const char *Buf, int BufSize) {
 string Hash::GetHash () {
     unsigned char *HashBin = (unsigned char *)mhash_end (Hasher);
     string HashHex;
+    // TBD: do more than one byte at a time
     for (int i = 0; i < HashSize; i++) {
         char Hex [3];
         snprintf (Hex, 3, "%02x", HashBin[i]);
-        HashHex += Hex;
+        HashHex.append(Hex);
     }
     return HashHex;
 }
 
 string Hash::HashStr (const string &Str) {
-    Update (Str.c_str(), Str.size());
+    Update (Str.data(), Str.size());
     return GetHash();
 }
 

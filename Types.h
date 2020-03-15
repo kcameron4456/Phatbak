@@ -6,7 +6,7 @@
 #include <string>
 using namespace std;
 
-typedef uint64_t BlockIdxType;
+typedef unsigned long long BlockIdxType;
 
 class ChunkInfo {
     public:

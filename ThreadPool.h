@@ -70,13 +70,21 @@ class JobCtrl {
     // tells the thread what type of work to do
     enum {
         CreateFile = 1, // create archive file
+        ExtractFile   , // extract file from archive
     } JobType;
 
-    union {
+    union JI {
         struct {
             ArchFileCreate *AF;
             bool            Keep;
         } CreateFile;
+        struct {
+            ArchiveRead    *Arch;
+            string          FileLine;
+            uint64_t        LineNo;
+        } ExtractFile;
+         JI () {}
+        ~JI () {}
     } JobInfo;
 
     JobCtrl (int idx) {

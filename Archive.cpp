@@ -118,36 +118,56 @@ void ArchiveRead::ParseOptions () {
     OptsFile.close();
 }
 
+void ArchiveRead::DoExtractJob (const string &FileLine, uint64_t LineNo) {
+    // extract information about the archived file
+    ArchFileRead *AF = new ArchFileRead (this, FileLine, LineNo);
+
+    InfoBlockIdsMtx.lock();
+    bool DoHLink = InfoBlockIds.find (AF->InfoBlkNum) != InfoBlockIds.end();
+    string LTarget = DoHLink ? InfoBlockIds[AF->InfoBlkNum]
+                             : AF->LinkTarget;
+    InfoBlockIdsMtx.unlock();
+
+    // create extracted file
+    LiveFile *LF = new LiveFile (AF->Name, AF->Stats, LTarget,
+                                 AF->Chunks, ChunkBlocks,
+                                 ModTimes, &ModTimesMtx,
+                                 DoHLink);
+
+    if (!DoHLink) {
+        InfoBlockIdsMtx.lock();
+        InfoBlockIds[AF->InfoBlkNum] = LF->Name;
+        InfoBlockIdsMtx.unlock();
+    }
+
+    delete LF;
+    delete AF;
+}
+
 void ArchiveRead::DoExtract () {
     // open the file list
     auto ListFile = OpenReadStream (ListPath);
 
     // parse and extract all the entries in the list
-    map <string, uint64_t> ModTimes;
-    map <uint64_t, string> InfoBlockIds;
     uint64_t LineNo = 0;
     string FileLine;
     while (getline (ListFile, FileLine)) {
         LineNo ++;
 
-        // extract information about the archived file
-        ArchFileRead *AF = new ArchFileRead (this, FileLine, LineNo);
-
-        bool DoHLink = InfoBlockIds.find (AF->InfoBlkNum) != InfoBlockIds.end();
-
-        string LTarget = DoHLink ? InfoBlockIds[AF->InfoBlkNum]
-                                 : AF->LinkTarget;
-
-        // create extracted file
-        LiveFile *LF = new LiveFile (AF->Name, AF->Stats, LTarget,
-                                     AF->Chunks, ChunkBlocks, ModTimes, DoHLink);
-
-        if (!DoHLink)
-            InfoBlockIds[AF->InfoBlkNum] = LF->Name;
-
-        delete LF;
-        delete AF;
+        if (O.NumThreads) {
+            JobCtrl *Job = ThreadPool.AllocThread();
+            Job->JobType = JobCtrl::ExtractFile;
+            Job->JobInfo.ExtractFile.Arch     = this;
+            Job->JobInfo.ExtractFile.FileLine = FileLine;
+            Job->JobInfo.ExtractFile.LineNo   = LineNo;
+            Job->Go();
+        } else {
+            DoExtractJob (FileLine, LineNo);
+        }
     }
+
+    // wait for all jobs to finish
+    ThreadPool.WaitIdle();
 
     // handle defered modification times
     for (auto& [Name, Time]: ModTimes)
@@ -229,11 +249,10 @@ void ArchiveCreate::PushFileList (const string &Fname, BlockIdxType Block, char 
     PushFileListMtx.unlock();
 }
 
-ArchFileCreate::ArchFileCreate (ArchiveCreate *arch, LiveFile *lf) {
+ArchFileCreate::ArchFileCreate (ArchiveCreate *arch, LiveFile *lf) : ArchFile (arch) {
     DBGCTOR;
-    ArchCreate = arch;
-    LF         = lf;
-    Name       = LF->Name;
+    LF     = lf;
+    Name   = LF->Name;
 
     Mtx.lock();
 }
@@ -247,20 +266,14 @@ void ArchFileCreate::CreateJob (bool Keep) {
 
     // For files, create chunks and FInfo entries
     if (LF->IsFile()) {
-        char Chunk [O.ChunkSize];
+        string Chunk;
         LF->OpenRead();
-        while (int RdSize = LF->ReadChunk (Chunk)) {
-            // write the chunk to the archive
-            BlockIdxType ChnkIdx = ArchCreate->ChunkBlocks->Alloc();
-            FILE *ChunkF = ArchCreate->ChunkBlocks->OpenBlockFile (ChnkIdx, "wb");
-            if (fwrite (Chunk, RdSize, 1, ChunkF) != 1)
-                THROW_PBEXCEPTION_IO ("Error writing to Chunk block file: " + ArchCreate->ChunkBlocks->Idx2FileName(ChnkIdx));
-            fclose (ChunkF);
+        while (LF->ReadChunk (Chunk)) {
+            BlockIdxType ChnkIdx = Arch->ChunkBlocks->SpitNewBlock (Chunk);
 
             // compute hash
             Hash Hasher (O.HashType);
-            Hasher.Update (Chunk, RdSize);
-            string HashHex = Hasher.GetHash();
+            string HashHex = Hasher.HashStr(Chunk);
 
             // TBD: compression
 
@@ -272,23 +285,18 @@ void ArchFileCreate::CreateJob (bool Keep) {
         FInfo += "L-" + LF->LinkTarget + "\n";
     }
 
-    // Create the file info block in the archive
-    InfoBlkNum = ArchCreate->FInfoBlocks->Alloc();
-    FILE *FInfoF = ArchCreate->FInfoBlocks->OpenBlockFile (InfoBlkNum, "wb");
-    if (fwrite (FInfo.c_str(), FInfo.size(), 1, FInfoF) != 1)
-        THROW_PBEXCEPTION_IO ("Error writing to FInfo block file: " + ArchCreate->FInfoBlocks->Idx2FileName(InfoBlkNum));
-    fclose (FInfoF);
+    // Put the file info block in the archive
+    InfoBlkNum = Arch->FInfoBlocks->SpitNewBlock (FInfo);
 
     // get the finfo block hash
     Hash Hasher (O.HashType);
-    Hasher.Update (FInfo.c_str(), FInfo.size());
-    InfoBlkHash = Hasher.GetHash();
+    InfoBlkHash = Hasher.HashStr(FInfo);
 
     // TBD: compress
     InfoBlkComp = 'U';
 
     // update archive file list
-    ArchCreate->PushFileList (Name, InfoBlkNum, InfoBlkComp, InfoBlkHash);
+    ((ArchiveCreate*)Arch)->PushFileList (Name, InfoBlkNum, InfoBlkComp, InfoBlkHash);
 
     // flag completion
     Mtx.unlock();
@@ -318,7 +326,7 @@ void ArchFileCreate::CreateLink (ArchFileCreate *Prev) {
     // wait for processing of original file to complete
     Prev->Mtx.lock();
 
-    ArchCreate->PushFileList (Name, Prev->InfoBlkNum, Prev->InfoBlkComp, Prev->InfoBlkHash);
+    ((ArchiveCreate*)Arch)->PushFileList (Name, Prev->InfoBlkNum, Prev->InfoBlkComp, Prev->InfoBlkHash);
 
     // release prev file
     Prev->Mtx.unlock();

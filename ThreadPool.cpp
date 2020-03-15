@@ -25,7 +25,15 @@ void BackGroundWorker (JobCtrl *Job) {
             DBG ("Job #%d, Type=%d Starting\n", Job->Idx, Job->JobType);
             switch (Job->JobType) {
                 case JobCtrl::CreateFile :
-                    Job->JobInfo.CreateFile.AF->CreateJob(Job->JobInfo.CreateFile.Keep);
+                    Job->JobInfo.CreateFile.AF->CreateJob(
+                        Job->JobInfo.CreateFile.Keep
+                        );
+                    break;
+                case JobCtrl::ExtractFile :
+                    Job->JobInfo.ExtractFile.Arch->DoExtractJob(
+                          Job->JobInfo.ExtractFile.FileLine
+                         ,Job->JobInfo.ExtractFile.LineNo
+                        );
                     break;
                 default:
                     THROW_PBEXCEPTION ("Unrecognized job type: %d", Job->JobType);

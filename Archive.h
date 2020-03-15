@@ -34,13 +34,19 @@ class Archive {
 };
 
 class ArchiveRead : public Archive {
-    Opts O;
+    Opts                   O;
+    map <uint64_t, string> InfoBlockIds;
+    mutex                  InfoBlockIdsMtx;
+    map <string, uint64_t> ModTimes;
+    mutex                  ModTimesMtx;
+
     void ParseOptions();
 
     public:
      ArchiveRead (RepoInfo *repo, const string &name, Opts &o);
     ~ArchiveRead ();
     void DoExtract();
+    void DoExtractJob (const string &FileLine, uint64_t LineNo);
 };
 
 class ArchiveCreate : public Archive {
@@ -79,16 +85,10 @@ class ArchFileRead : public ArchFile {
     void SlurpFinfo (BlockIdxType Idx, string &FInfoPacked);
 };
 
-class ArchFileCreate {
+class ArchFileCreate : public ArchFile {
     public:
     string            Name;
-    ArchiveCreate    *ArchCreate;
-    BlockIdxType      InfoBlkNum;
-    char              InfoBlkComp;
-    string            InfoBlkHash;
-    mutex             Mtx;
     LiveFile         *LF;
-    string            Stats;
     vector <uint64_t> DataBlkNs;
 
     ArchFileCreate (ArchiveCreate *arch, LiveFile *lf);

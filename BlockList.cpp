@@ -138,19 +138,6 @@ string BlockList::Idx2FileName (BlockIdxType Idx) {
     return Idx2DirString (Idx) + "/" + to_string (Idx);
 }
 
-FILE *BlockList::OpenBlockFile (BlockIdxType Idx, const char *mode) {
-    // create subdirs
-    string SubDirName = Idx2DirString(Idx);
-    Utils::CreateDir (SubDirName, true);
-
-    string BlockFileName = SubDirName + "/" + to_string (Idx);
-    FILE *BlkFile = fopen (BlockFileName.c_str(), mode);
-    if (!BlkFile)
-        THROW_PBEXCEPTION_IO ("Can't open block file: " + BlockFileName);
-
-    return BlkFile;
-}
-
 void BlockList::SlurpBlock (BlockIdxType Idx, string &BufStr) {
     FILE *F = Utils::OpenReadBin (Idx2FileName (Idx));
 
@@ -166,4 +153,20 @@ void BlockList::SlurpBlock (BlockIdxType Idx, string &BufStr) {
     BufStr.resize (TotalSize);
 
     fclose (F);
+}
+
+void BlockList::SpitBlock (BlockIdxType Idx, const string &BufStr) {
+    // create subdirs
+    string SubDirName = Idx2DirString(Idx);
+    Utils::CreateDir (SubDirName, true);
+
+    FILE *F = Utils::OpenWriteBin (Idx2FileName (Idx));
+    Utils::WriteBinary (F, BufStr.data(), BufStr.size());
+    fclose (F);
+}
+
+BlockIdxType BlockList::SpitNewBlock (const string &BufStr) {
+    BlockIdxType Blk = Alloc();
+    SpitBlock (Blk, BufStr);
+    return Blk;
 }

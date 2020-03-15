@@ -131,6 +131,13 @@ int Utils::ReadBinary (FILE *F, char *Buf, int BufSize) {
     return BytesRead;
 }
 
+int Utils::ReadBinary (FILE *F, string &Str, int MaxSize) {
+    Str.resize(MaxSize);
+    int Size = ReadBinary (F, Str.data(), MaxSize);
+    Str.resize (Size);
+    return Size;
+}
+
 void Utils::WriteBinary (FILE *F, const char *Buf, unsigned BufSize) {
     if (fwrite (Buf, 1, BufSize, F) != BufSize)
         THROW_PBEXCEPTION_IO ("Write failed");

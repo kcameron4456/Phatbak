@@ -39,6 +39,9 @@ namespace Utils {
     // read unformatted data into byte buffer
     int ReadBinary (FILE *F, char *Buf, int BufSize);
 
+    // read unformatted data into string
+    int ReadBinary (FILE *F, string &Str, int MaxSize);
+
     // write unformatted data to file
     void WriteBinary (FILE *F, const char *Buf, unsigned BufSize);
     void WriteBinary (FILE *F, const string &Str);

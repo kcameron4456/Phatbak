@@ -17,8 +17,7 @@ using namespace std;
 LiveFile::LiveFile (const string &name) {
     DBGCTOR;
     Name = name;
-
-    FD = -1;
+    F = NULL;
 
     // get file info
     if (lstat (Name.c_str(), &Stats) < 0)
@@ -45,11 +44,13 @@ LiveFile::LiveFile (const string &name) {
 // for extract, etc
 LiveFile::LiveFile (const string &name              , const string &stats   , const string &ltarg
                    ,vector <ChunkInfo> &Chunks      , BlockList *ChunkBlocks
-                   ,map <string, uint64_t> &ModTimes
+                   ,map <string, uint64_t> &ModTimes, mutex *ModTimesMtx
                    ,bool DoHLink
                    ) {
     DBGCTOR;
     Name = name;
+    F = NULL;
+
     ImportInfoHeader (stats);
     LinkTarget = ltarg;
 
@@ -112,16 +113,20 @@ LiveFile::LiveFile (const string &name              , const string &stats   , co
         if (!IsSLink() && chmod (Name.c_str(), Stats.st_mode))
             THROW_PBEXCEPTION_IO ("Can't set dir/file directory (%s) mode to %o", Name.c_str(), Stats.st_mode);
 
-        if (IsDir())
+        if (IsDir()) {
             // dir modification time needs to be set later
+            ModTimesMtx->lock();
             ModTimes [Name] = mTime();
-        else
+            ModTimesMtx->unlock();
+        } else {
             SetModTime (Name, mTime());
+        }
     }
 }
 
 LiveFile::~LiveFile () {
     DBGDTOR;
+    Close();
 }
 
 vector <string> LiveFile::GetSubs () {
@@ -172,29 +177,32 @@ void SplitFileName (const string &RawName, string &Path, string &Name) {
     Name = RawName.substr (LastSlash+1);
 }
 
-void LiveFile::Close () {
-    if (close (FD) < 0)
-         THROW_PBEXCEPTION_IO ("Can't close file: %s ", Name.c_str());
-    FD = -1;
-}
-
 void LiveFile::OpenRead () {
-    if ((FD = open (Name.c_str(), O_RDONLY)) < 0)
-         THROW_PBEXCEPTION_IO ("Can't open file for read: %s ", Name.c_str());
+    F = OpenReadBin (Name);
 }
 
 void LiveFile::OpenWrite () {
-    if ((FD = open (Name.c_str(), O_WRONLY)) < 0)
-         THROW_PBEXCEPTION_IO ("Can't open file for write: %s ", Name.c_str());
+    F = OpenWriteBin (Name);
+}
+
+void LiveFile::Close () {
+    if (F)
+        fclose (F);
+    F = NULL;
 }
 
 int LiveFile::Read (char *Buf, int ReqSize) {
-    int RdSize;
-    if ((RdSize = read (FD, Buf, ReqSize)) < 0)
-         THROW_PBEXCEPTION_IO ("Error reading from: " + Name);
-    return RdSize;
+    return ReadBinary (F, Buf, ReqSize);
 }
 
-int LiveFile::ReadChunk (char *Buf) {
-    return Read (Buf, O.ChunkSize);
+int  LiveFile::ReadChunk (string &Chunk) {
+    return ReadBinary (F, Chunk, O.ChunkSize);
+}
+
+void LiveFile::Write (const string &Str) {
+    WriteBinary (F, Str);
+}
+
+void LiveFile::Write (char *Buf, int ReqSize) {
+    WriteBinary (F, Buf, ReqSize);
 }
