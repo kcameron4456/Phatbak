@@ -114,7 +114,6 @@ void ArchiveRead::ParseOptions () {
         else if (OptName == "HashType"       ) O.HashType        = HashNameToEnum (OptVal);
     }
 
-    O.Print();
     OptsFile.close();
 }
 
