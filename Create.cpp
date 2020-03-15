@@ -24,10 +24,6 @@ void Create::DoCreate (const string &Name) {
     ArchFileCreate *AF      = new ArchFileCreate (Arch, LF);
     vector <string> SubDirs = LF->GetSubs();
 
-    // remember info for each file
-    //FileList.push_back (Name); // list of all files
-    //FileMap [Name] = LF;       // reference file info by name
-
     // if the device and inode has already been seen, process hard link
     bool KeepAF = false;
     if (uint32_t INode = LF->INode()) {
