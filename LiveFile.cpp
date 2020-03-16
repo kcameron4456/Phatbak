@@ -106,7 +106,7 @@ LiveFile::LiveFile (const string &name              , const string &stats   , co
             if (mkfifo (Name.c_str(), Stats.st_mode) < 0)
                 THROW_PBEXCEPTION_IO ("Can't create fifo: %s", Name.c_str());
         } else if (IsSocket()) {
-            // not yet - might be complicated
+            // not yet - not sure what to do
         } else if (IsFile()) {
             vector <BusyLock *> Locks;
             BusyLock *PrevLock = NULL;
@@ -119,7 +119,7 @@ LiveFile::LiveFile (const string &name              , const string &stats   , co
                 Locks.push_back(Lock);
 
                 // get help on all but the final chunk
-                if (O.NumThreads && ChunkItr != (Chunks.end()-1)) {
+                if (O.NumThreads > 1 && ChunkItr != (Chunks.end()-1)) {
                     JobCtrl *Thr = ThreadPool.AllocThread();
                     Thr->JobType                      = JobCtrl::ExtractChunk;
                     Thr->ExtractChunkInfo.Chunk       = &Chunk;
