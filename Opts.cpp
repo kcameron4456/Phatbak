@@ -145,8 +145,8 @@ void Opts::ParseCmdLine (const int argc, const char *argv[]) {
     Operation       = DoUndef;
     ShowFiles       = 0;
     NumThreads      = 0;
-    IntCompType     = 0; // TBD: TTCMPT_NONE;
-    IntComprLvl     = 2;
+    CompType        = CompType_ZTSD;
+    CompLevel       = 2;
     BlockNumDigits  = 2;
     ChunkSize       = 1 << 18;
     HashType        = HashType_MD5;
@@ -208,8 +208,8 @@ void Opts::ParseCmdLine (const int argc, const char *argv[]) {
         PARSE_MinusFlg ("-v"                ,, ShowFiles  , 1,)
         PARSE_MinusFlg ("-D"                ,, ShowFiles=ArchDiag, 1, )
         PARSE_MinusVal ("-T"                ,"%d", &NumThreads,)
-        // TBD: PARSE_MinusFlg ("-iZ"            ,,  TmpInt   , 1, IntCompType=TTCMPT_ZSTD;)
-        PARSE_MinusVal ("-iZl","%d"         , &IntComprLvl,)
+        PARSE_MinusStr ("--Comp"            , arg, CompType = Comp::CompNameToEnum(arg);)
+        PARSE_MinusVal ("--CompLevel"       ,"%d", &CompLevel,)
         PARSE_MinusStr ("--HashType"        , arg, HashType = HashNameToEnum(arg);)
         PARSE_MinusVal ("--ChunkSize"       ,"%d", &ChunkSize,)
         PARSE_MinusVal ("--BlockNumDigits"  ,"%d", &BlockNumDigits,)
@@ -276,5 +276,7 @@ string Opts::OptsString () {
     F << "   BlockNumModulus = " << BlockNumModulus                 << endl;
     F << "   ChunkSize       = " << ChunkSize                       << endl;
     F << "   HashType        = " << HashNames[HashType]             << endl;
+    F << "   CompType        = " << CompNames[CompType]             << endl;
+    F << "   CompLevel       = " << CompLevel                       << endl;
     return F.str();
 }

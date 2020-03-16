@@ -18,6 +18,8 @@ int main () {
             cout << "Path:" << Path << ": CPath:" << CPath << ":" << endl;
         }
 
+        printf ("sizeof(unsigned) = %lu\n", sizeof (unsigned));
+
         //CreateDir ("zzz");
         //CreateDir ("zzz");
         //CreateDir ("zzzz/bbb/zzz", 1);

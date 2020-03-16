@@ -1,7 +1,9 @@
 #ifndef OPTS_H
 #define OPTS_H
 
+#include "Types.h"
 #include "Hash.h"
+#include "Comp.h"
 
 #include <string>
 #include <vector>
@@ -25,13 +27,13 @@ class Opts {
     string    ArchDirName;      // Archive directory withing the repo
     int       BlockNumDigits;   // Number of digits to assign to each level of a blocked directory
     int       BlockNumModulus;  // Amount by which divide block indices to create block levels
-    eHashType HashType;         // hash algorythm
-    int       ChunkSize;        // Max size of data blocks into which file data are stored
+    eHashType HashType;         // hash algorithm
+    unsigned  ChunkSize;        // Max size of data blocks into which file data are stored
     bool      ShowFiles;        // Show file names as they are archived or extracted
     bool      ArchDiag;         // Show diagnostic for archive file blocks in Test mode
     int       NumThreads;       // number of helper threads to launch
-    int       IntCompType;      // type of per-file-block compression to use (must be in TTCompType_e)
-    int       IntComprLvl;      // compression effort
+    eCompType CompType;         // type of per-file-block compression to use
+    int       CompLevel;        // compression effort
     string    ExtractTarget;    // directory into which to place files extracted from an Archive
     bool      DebugPrint;       // true output trace info for debug
 

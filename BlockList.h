@@ -1,9 +1,9 @@
 #ifndef BLOCKLIST_H
 #define BLOCKLIST_H
 
+#include "Types.h"
 #include "RepoInfo.h"
 #include "Opts.h"
-#include "Types.h"
 
 #include <string>
 #include <vector>

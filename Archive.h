@@ -57,7 +57,7 @@ class ArchiveCreate : public Archive {
     ~ArchiveCreate ();
 
     void Init         (RepoInfo *repo, const string &name);
-    void PushFileList (const string &Fname, BlockIdxType Block, char Comp, const string &Hash);
+    void PushFileList (const string &Fname, BlockIdxType Block, eCompType CompType, const string &Hash);
 };
 
 class ArchFile {
@@ -65,7 +65,7 @@ class ArchFile {
     Archive           *Arch;
     string             Name;
     BlockIdxType       InfoBlkNum;
-    char               InfoBlkComp;
+    eCompType          InfoBlkComp;
     string             InfoBlkHash;
     mutex              Mtx;
     string             Stats;

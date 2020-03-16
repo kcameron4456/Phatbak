@@ -2,6 +2,7 @@
 #include "Logging.h"
 #include "Utils.h"
 #include "ThreadPool.h"
+#include "Comp.h"
 using namespace Utils;
 
 #include <string>
@@ -108,10 +109,12 @@ void ArchiveRead::ParseOptions () {
         string &OptName = Toks[0];
         string &OptVal  = Toks[1];
 
-             if (OptName == "BlockNumDigits" ) O.BlockNumDigits  = stoull         (OptVal);
-        else if (OptName == "BlockNumModulus") O.BlockNumModulus = stoull         (OptVal);
-        else if (OptName == "ChunkSize"      ) O.ChunkSize       = stoull         (OptVal);
-        else if (OptName == "HashType"       ) O.HashType        = HashNameToEnum (OptVal);
+             if (OptName == "BlockNumDigits" ) O.BlockNumDigits  = stoull               (OptVal);
+        else if (OptName == "BlockNumModulus") O.BlockNumModulus = stoull               (OptVal);
+        else if (OptName == "ChunkSize"      ) O.ChunkSize       = stoull               (OptVal);
+        else if (OptName == "HashType"       ) O.HashType        = HashNameToEnum       (OptVal);
+        else if (OptName == "CompType"       ) O.CompType        = Comp::CompNameToEnum (OptVal);
+        else if (OptName == "CompLevel"      ) O.CompLevel       = stoull               (OptVal);
     }
 
     OptsFile.close();
@@ -200,22 +203,28 @@ ArchFileRead::ArchFileRead (ArchiveRead *arch, const string &ListEntry, uint64_t
     if (RHSToks.size() != 3)
         THROW_PBEXCEPTION_FMT ("%s:%llu has bad format", Arch->ListPath.c_str(), LineNo);
     InfoBlkNum  = stoull (RHSToks[0]);
-    InfoBlkComp = RHSToks[1][0];
+    InfoBlkComp = Comp::CompFlag2CompType(RHSToks[1][0], O);
     InfoBlkHash = RHSToks[2];
 
     // extract information from the FInfo block
     string FInfoPacked;
     Arch->FInfoBlocks->SlurpBlock (InfoBlkNum, FInfoPacked);
 
+    // decompress
+    string *SelData = &FInfoPacked;
+    string  DeCompressed;
+    if (InfoBlkComp != CompType_NONE) {
+        Comp::DeCompress (InfoBlkComp, FInfoPacked, DeCompressed);
+        SelData = &DeCompressed;
+    }
+
     // check hash
-    string FInfoHashFound = HashStr (((ArchiveRead*)Arch)->O.HashType, FInfoPacked);
+    string FInfoHashFound = HashStr (((ArchiveRead*)Arch)->O.HashType, *SelData);
     if (FInfoHashFound != InfoBlkHash)
         THROW_PBEXCEPTION_FMT ("Hash mismatch on FInfo block #%llu", InfoBlkNum);
 
-    // TBD: handle decompress
-
     // parse finfo
-    vector <string> FInfoLines = SplitStr (FInfoPacked, "\n");
+    vector <string> FInfoLines = SplitStr (*SelData, "\n");
     for (auto Line : FInfoLines) {
         if (Line.size() < 3 || Line[1] != '-')
             THROW_PBEXCEPTION_FMT ("Illegal FInfo format: %s", Line.c_str());
@@ -231,7 +240,10 @@ ArchFileRead::ArchFileRead (ArchiveRead *arch, const string &ListEntry, uint64_t
             case 'U' :
             case 'C' : {
                 vector <string> Parts = SplitStr (Line, " ");
-                Chunks.emplace_back (RecType, stoull (Parts[0].c_str()), Parts[1], O.HashType);
+                Chunks.emplace_back (RecType == 'U' ? CompType_NONE : O.CompType,
+                                     stoull (Parts[0].c_str()),
+                                     Parts[1],
+                                     O.HashType);
                 break;
                 }
 
@@ -246,8 +258,9 @@ ArchFileRead::~ArchFileRead () {
 }
 
 mutex PushFileListMtx;
-void ArchiveCreate::PushFileList (const string &Fname, BlockIdxType Block, char Comp, const string &Hash) {
-    string FileEntry = Fname + " /../ " + to_string(Block) + " " + Comp + " " + Hash + "\n";
+void ArchiveCreate::PushFileList (const string &Fname, BlockIdxType Block, eCompType CompType, const string &Hash) {
+    string FileEntry = Fname + " /../ " + to_string(Block) + " " +
+                       Comp::CompType2CompFlag(CompType) + " " + Hash + "\n";
     PushFileListMtx.lock();
     ListFile << FileEntry;
     PushFileListMtx.unlock();
@@ -273,31 +286,52 @@ void ArchFileCreate::CreateJob (bool Keep) {
         string Chunk;
         LF->OpenRead();
         while (LF->ReadChunk (Chunk)) {
-            BlockIdxType ChnkIdx = Arch->ChunkBlocks->SpitNewBlock (Chunk);
-
             // compute hash
             Hash Hasher (O.HashType);
             string HashHex = Hasher.HashStr(Chunk);
 
-            // TBD: compression
+            // compress the chunk
+            // if compression doesn't help, keep it uncompressed
+            string *SelChunk = &Chunk;
+            char    CompC    = CompFlagUnComp;
+            string  Compressed;
+            if (O.CompType != CompType_NONE) {
+                Comp::Compress (Chunk, Compressed);
+                if (Compressed.size() < Chunk.size()) {
+                    SelChunk = &Compressed;
+                    CompC    = CompFlagComp;
+                }
+            }
+
+            BlockIdxType ChnkIdx = Arch->ChunkBlocks->SpitNewBlock (*SelChunk);
 
             // add chunk to finfo
-            FInfo += "U-" + to_string (ChnkIdx) + " " + HashHex + "\n";
+            FInfo += string("") + CompC + "-" + to_string (ChnkIdx) + " " + HashHex + "\n";
         }
         LF->Close();
     } else if (LF->IsSLink()) {
         FInfo += "L-" + LF->LinkTarget + "\n";
     }
 
+    // compress the finfo
+    // if compression doesn't help, keep it uncompressed
+    string *SelFInfo = &FInfo;
+    InfoBlkComp = CompType_NONE;
+    string Compressed;
+    if (O.CompType != CompType_NONE) {
+        Comp::Compress (FInfo, Compressed);
+        if (Compressed.size() < FInfo.size()) {
+            SelFInfo    = &Compressed;
+            InfoBlkComp = O.CompType;
+        }
+    }
+
     // Put the file info block in the archive
-    InfoBlkNum = Arch->FInfoBlocks->SpitNewBlock (FInfo);
+    InfoBlkNum = Arch->FInfoBlocks->SpitNewBlock (*SelFInfo);
 
     // get the finfo block hash
     Hash Hasher (O.HashType);
     InfoBlkHash = Hasher.HashStr(FInfo);
-
-    // TBD: compress
-    InfoBlkComp = 'U';
 
     // update archive file list
     ((ArchiveCreate*)Arch)->PushFileList (Name, InfoBlkNum, InfoBlkComp, InfoBlkHash);

@@ -2,6 +2,7 @@
 #include "Logging.h"
 #include "Opts.h"
 #include "Utils.h"
+#include "Comp.h"
 using namespace Utils;
 
 #include <string.h>
@@ -87,13 +88,19 @@ LiveFile::LiveFile (const string &name              , const string &stats   , co
                 string ChunkData;
                 ChunkBlocks->SlurpBlock (Chunk.Idx, ChunkData);
 
-                // TBD: handle decompress
+                // handle decompress
+                string *SelData = &ChunkData;
+                string DeCompressed;
+                if (Chunk.CompType != CompType_NONE) {
+                    Comp::DeCompress (Chunk.CompType, ChunkData, DeCompressed);
+                    SelData = &DeCompressed;
+                }
 
-                string ChunkDataHash = HashStr (Chunk.HashType, ChunkData);
+                string ChunkDataHash = HashStr (Chunk.HashType, *SelData);
                 if (ChunkDataHash != Chunk.Hash)
                     THROW_PBEXCEPTION_FMT ("Hash mismatch on data chunk #%llu", Chunk.Idx);
 
-                WriteBinary (F, ChunkData);
+                WriteBinary (F, *SelData);
             }
             fclose (F);
         }
