@@ -147,37 +147,18 @@ void Utils::WriteBinary (FILE *F, const string &Str) {
     WriteBinary (F, Str.c_str(), Str.size());
 }
 
-recursive_mutex CreateDirMtx; // TBD: debug problems with multiple threads creating dirs
 void Utils::CreateDir (const string Dir, bool CreateSubs) {
-    unique_lock <recursive_mutex> lock (CreateDirMtx);
-
-    // we're finished if the directory already exists
-    if (Dir == "" || fs::is_directory (Dir))
-        return;
-
-    // abort if it's something other than a directory
-    if (fs::exists (Dir))
-        THROW_PBEXCEPTION_IO ("Utils::CreateDir %s is not a directory", Dir.c_str());
-
-    // try to create the directory
     error_code ec;
-    if (fs::create_directory(Dir, ec))
-        return;
+    if (CreateSubs) {
+        if (fs::create_directories (Dir, ec))
+            return;
+    } else {
+        if (fs::create_directory (Dir, ec))
+            return;
+    }
     if (!ec)
         return;
-
-    // on fail, see if we want to create a subdir
-    if (CreateSubs && ec == errc::no_such_file_or_directory) {
-        // try to create the previous directory
-        auto SubDirs = SplitStr (Dir, "/");
-        SubDirs.pop_back ();
-        CreateDir (JoinStrs (SubDirs, "/"), 1);
-        CreateDir (Dir);
-    } else if (ec == errc::file_exists) {
-        // ignore if the directory was created by someone else since we began
-    } else {
-        THROW_PBEXCEPTION_IO ("Can't create directory %s", Dir.c_str());
-    }
+    THROW_PBEXCEPTION_IO ("Utils::CreateDir Failed to create %s: %s", Dir.c_str(), ec.message().c_str());
 }
 
 void Utils::SetModTime (const string &Name, uint64_t Time) {
