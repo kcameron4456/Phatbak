@@ -13,8 +13,8 @@ class BusyLock {
     condition_variable CV;
 
     public:
-    BusyLock () {
-        Busy = false;
+    BusyLock (bool b = false) {
+        Busy = b;
     }
     void WaitIdle () {
         unique_lock<mutex> lock(Mtx);
