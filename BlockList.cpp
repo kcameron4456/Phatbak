@@ -18,73 +18,74 @@ BlockList::~BlockList () {
 }
 
 // allocate a block index
-BlockIdxType BlockList::Alloc () {
-    Mtx.lock();
+i64 BlockList::Alloc () {
+    unique_lock<mutex> lock(Mtx);
 
-    BlockIdxType Idx;
+    i64 Idx;
 
     if (Ranges.size() == 0) {
         // create first allocated range
-        BlockRangeTuple R (0,0);
-        Ranges.push_back (R);
+        Ranges.emplace_back (0,0);
         Idx = 0;
     } else {
         // allocate from the first range
-        BlockRangeTuple R0 = Ranges[0];
-        Idx = ++R0.max;
+        BlockRangeTuple &Range = Ranges[0];
+        Idx = ++Range.max;
 
         // see if we need to merge with the next range
         if (Ranges.size() > 1) {
-            BlockRangeTuple R1 = Ranges[1];
+            BlockRangeTuple &R1 = Ranges[1];
             if (Idx > R1.min)
-                THROW_PBEXCEPTION ("Block Allocation list corrupted. Idx:%d NextMin:%d", Idx, R1.min);
+                THROW_PBEXCEPTION ("Block Allocation list corrupted. Idx:" PRIi64 " NextMin:" PRIi64, Idx, R1.min);
             if (Idx == R1.min) {
                 // merge ranges 0 and 1
-                R0.max = R1.max;
+                Range.max = R1.max;
                 Ranges.erase (Ranges.begin()+1);
             }
         }
-        Ranges[0] = R0;
     }
 
-    Mtx.unlock();
     return Idx;
 }
 
-int BlockList::Search (BlockIdxType Idx) {
+// find the last tuple whose max value is less than or equal to a given index
+i64 BlockList::Search (i64 Idx) {
     return Search (Idx, 0, Ranges.size()-1);
 }
 
-// find a block index within the allocated blocks
-int BlockList::Search (BlockIdxType Idx, int Start, int End) {
+i64 BlockList::Search (i64 Idx, i64 Start, i64 End) {
     if (Start > End)
         return -1;
 
     // Note: binary search
 
     // check the middle of the search range
-    int Mid = (Start + End) / 2;
-    BlockRangeTuple RMid = Ranges [Mid];
-    if (Idx >= RMid.min && Idx <= RMid.max)
+    i64   Mid     = (Start + End) / 2;
+    i64   MidNxt  = Mid + 1;
+    auto &RMid    = Ranges [Mid];
+    auto &RMidNxt = Ranges [MidNxt];
+    if (Idx >= RMid.min
+        && (Idx <= RMid.max || (MidNxt < (i64)Ranges.size() && Idx < RMidNxt.min))
+       )
         return Mid;
 
-    // check lower range
+    // check lower half
     if (Idx < RMid.min)
         return Search (Idx, Start, Mid-1);
 
-    // check upper range
+    // check upper half
     return Search (Idx, Mid+1, End);
 }
 
 // free a block index from the allocated blocks
-void BlockList::Free (BlockIdxType Idx) {
-    Mtx.lock();
+void BlockList::Free (i64 Idx) {
+    unique_lock<mutex> lock(Mtx);
 
     // find the range containing the block index
-    int RangeIdx = Search (Idx);
-    if (RangeIdx < 0)
-        THROW_PBEXCEPTION ("BlockList::Free: Attempt to free unallocated index: %d", Idx);
-    BlockRangeTuple Range = Ranges[RangeIdx];
+    i64 RangeIdx = Search (Idx);
+    BlockRangeTuple &Range = Ranges[RangeIdx];
+    if (RangeIdx < 0 || Range.max < Idx)
+        THROW_PBEXCEPTION ("BlockList::Free: Attempt to free unallocated index: " PRIi64, Idx);
 
     if (Range.min == Idx) {
         // free from low end of range
@@ -102,19 +103,48 @@ void BlockList::Free (BlockIdxType Idx) {
         Range.max = Idx-1;
     }
 
-    // update the current range
+    // delete the range if its empty
     if (Range.min > Range.max)
         Ranges.erase(Ranges.begin()+RangeIdx);
-    else
-        Ranges[RangeIdx] = Range;
+}
 
-    Mtx.unlock();
+// mark a block as allocated
+void BlockList::MarkAllocated (i64 Idx) {
+    unique_lock<mutex> lock(Mtx);
+
+    i64 RangeIdx = Search (Idx);
+
+    if (RangeIdx < 0) {
+        // create new first range
+        BlockRangeTuple R0 (Idx, Idx);
+        Ranges.insert (Ranges.begin(), 1, R0);
+        return;
+    }
+
+    auto &Range = Ranges [RangeIdx];
+    if (Range.max >= Idx)
+        THROW_PBEXCEPTION ("BlockList::MarkAllocated: Attempt to mark allocated index: " PRIi64, Idx);
+    if (Range.max == Idx+1) {
+        // merge new index into an existing range
+        Range.max++;
+
+        RangeIdx++;
+        if (RangeIdx < (i64)Ranges.size()) {
+            BlockRangeTuple &NxtRange = Ranges [RangeIdx];
+            if (NxtRange.min < Range.max)
+                THROW_PBEXCEPTION ("BlockList::MarkAllocated: Found unmerged range: " PRIi64, RangeIdx);
+            if (NxtRange.min == Range.max) {
+                Range.max = NxtRange.max;
+                Ranges.erase (Ranges.begin()+RangeIdx);
+            }
+        }
+    }
 }
 
 // convert a block number to a list of directory components
-vector <string> BlockList::GetSubDirs (BlockIdxType Idx) {
-    vector <string> SubDirs;
-    BlockIdxType TmpIdx = Idx / O.BlockNumModulus;
+vecstr BlockList::GetSubDirs (i64 Idx) {
+    vecstr SubDirs;
+    i64 TmpIdx = Idx / O.BlockNumModulus;
     while (TmpIdx) {
         unsigned Part   = TmpIdx % O.BlockNumModulus;
                  TmpIdx = TmpIdx / O.BlockNumModulus;
@@ -127,23 +157,23 @@ vector <string> BlockList::GetSubDirs (BlockIdxType Idx) {
 }
 
 // convert a block number to a directory path
-string BlockList::Idx2DirString (BlockIdxType Idx) {
-    vector <string> Dirs = GetSubDirs (Idx);
+string BlockList::Idx2DirString (i64 Idx) {
+    vecstr Dirs = GetSubDirs (Idx);
     Dirs.insert (Dirs.begin(), 1, TopDir);
     return Utils::JoinStrs (Dirs, "/");
 }
 
 // convert a block number to a path relative to a top dir
-string BlockList::Idx2FileName (BlockIdxType Idx) {
+string BlockList::Idx2FileName (i64 Idx) {
     return Idx2DirString (Idx) + "/" + to_string (Idx);
 }
 
-void BlockList::SlurpBlock (BlockIdxType Idx, string &BufStr) {
+void BlockList::SlurpBlock (i64 Idx, string &BufStr) {
     FILE *F = Utils::OpenReadBin (Idx2FileName (Idx));
 
     unsigned TotalSize = 0;
 
-    int BytesRead;
+    i64 BytesRead;
     do {
         BufStr.resize (TotalSize + O.ChunkSize);
         BytesRead = Utils::ReadBinary (F, BufStr.data() + TotalSize, O.ChunkSize);
@@ -155,18 +185,18 @@ void BlockList::SlurpBlock (BlockIdxType Idx, string &BufStr) {
     fclose (F);
 }
 
-void BlockList::SpitBlock (BlockIdxType Idx, const string &BufStr) {
+void BlockList::SpitBlock (i64 Idx, const string &BufStr) {
     // create subdirs
     string SubDirName = Idx2DirString(Idx);
     Utils::CreateDir (SubDirName, true);
 
     FILE *F = Utils::OpenWriteBin (Idx2FileName (Idx));
-    Utils::WriteBinary (F, BufStr.data(), BufStr.size());
+    Utils::WriteBinary (F, BufStr);
     fclose (F);
 }
 
-BlockIdxType BlockList::SpitNewBlock (const string &BufStr) {
-    BlockIdxType Blk = Alloc();
+i64 BlockList::SpitNewBlock (const string &BufStr) {
+    i64 Blk = Alloc();
     SpitBlock (Blk, BufStr);
     return Blk;
 }

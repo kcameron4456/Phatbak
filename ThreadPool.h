@@ -48,7 +48,7 @@ class JobCtrl {
     struct {
         ChunkInfo   *Chunk;
         BlockList   *ChunkBlocks;
-        BlockIdxType BlockIdx;
+        i64          BlockIdx;
         FILE        *F;
         BusyLock    *Lock;
         BusyLock    *PrevLock;

@@ -14,8 +14,8 @@ using namespace std;
 
 class BlockRangeTuple {
     public:
-    BlockIdxType min, max;
-    BlockRangeTuple (BlockIdxType mn, BlockIdxType mx) {
+    i64 min, max;
+    BlockRangeTuple (i64 mn, i64 mx) {
         min = mn;
         max = mx;
     }
@@ -27,22 +27,23 @@ class BlockList {
     vector <BlockRangeTuple> Ranges;
     mutex  Mtx;
 
-    int Search (BlockIdxType Idx);
-    int Search (BlockIdxType Idx, int Start, int End);
+    i64 Search (i64 Idx);
+    i64 Search (i64 Idx, i64 Start, i64 End);
 
     public:
      BlockList (const string &topdir, const Opts &o);
     ~BlockList ();
 
-    BlockIdxType    Alloc           ();
-    void            Free            (BlockIdxType Idx);
-    vector <string> GetSubDirs      (BlockIdxType Idx);
-    string          Idx2DirString   (BlockIdxType Idx);
-    string          Idx2FileName    (BlockIdxType Idx);
-    fstream         OpenReadStream  (BlockIdxType Idx);
-    void            SlurpBlock      (BlockIdxType Idx,       string &BufStr);
-    void            SpitBlock       (BlockIdxType Idx, const string &BufStr);
-    BlockIdxType    SpitNewBlock    (                  const string &BufStr);
+    i64 Alloc           ();
+    void    Free            (i64 Idx);
+    void    MarkAllocated   (i64 Idx);
+    vecstr  GetSubDirs      (i64 Idx);
+    string  Idx2DirString   (i64 Idx);
+    string  Idx2FileName    (i64 Idx);
+    fstream OpenReadStream  (i64 Idx);
+    void    SlurpBlock      (i64 Idx,       string &BufStr);
+    void    SpitBlock       (i64 Idx, const string &BufStr);
+    i64     SpitNewBlock    (         const string &BufStr);
 };
 
 #endif // BLOCKLIST_H

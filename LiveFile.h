@@ -11,7 +11,7 @@
 #include <map>
 using namespace std;
 
-void ExtractChunkJob (ChunkInfo *Chunk, BlockList *ChunkBlocks, BlockIdxType BlockIdx, FILE *F, BusyLock *Lock, BusyLock *PrevLock);
+void ExtractChunkJob (ChunkInfo *Chunk, BlockList *ChunkBlocks, i64 BlockIdx, FILE *F, BusyLock *Lock, BusyLock *PrevLock);
 
 class LiveFile {
     public:

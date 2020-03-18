@@ -43,7 +43,7 @@ LiveFile::LiveFile (const string &name) {
     }
 }
 
-void ExtractChunkJob (ChunkInfo *Chunk, BlockList *ChunkBlocks, BlockIdxType BlockIdx, FILE *F, BusyLock *Lock, BusyLock *PrevLock) {
+void ExtractChunkJob (ChunkInfo *Chunk, BlockList *ChunkBlocks, i64 BlockIdx, FILE *F, BusyLock *Lock, BusyLock *PrevLock) {
     string ChunkData;
     ChunkBlocks->SlurpBlock (BlockIdx, ChunkData);
 
@@ -119,6 +119,7 @@ LiveFile::LiveFile (const string &name              , const string &stats   , co
                 Locks.push_back(Lock);
 
                 // get help on all but the final chunk
+                // avoid deadlock if NumThreads==1 (because this function uses a thread)
                 if (O.NumThreads > 1 && ChunkItr != (Chunks.end()-1)) {
                     JobCtrl *Thr = ThreadPool.AllocThread();
                     Thr->JobType                      = JobCtrl::ExtractChunk;

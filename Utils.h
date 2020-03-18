@@ -1,6 +1,9 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include "Types.h"
+#include "BlockList.h"
+
 #include <vector>
 #include <string>
 #include <fstream>
@@ -9,7 +12,7 @@ using namespace std;
 
 namespace Utils {
     // split string into in parts delimited by pattern
-    vector <string> SplitStr (string Src, const string &Pat);
+    vecstr SplitStr (string Src, const string &Pat);
 
     // remove all white space from beginning and end of string
     void   TrimStr (string *Str);
@@ -19,7 +22,7 @@ namespace Utils {
     string CanonizeFileName (const string &RawName);
 
     // join multiple strings into one with optional separater
-    string JoinStrs (const vector <string> &Parts, const string &Sep = "");
+    string JoinStrs (const vecstr &Parts, const string &Sep = "");
 
     // open file stream for input
     fstream OpenReadStream (const string &Name);
@@ -54,6 +57,12 @@ namespace Utils {
 
     // hard link one file to another
     void MakeHardLink (const string &ExistingFile, const string &NewName);
+
+    // create a hardlinked copy of an existing block directory (FInfo or Chunks)
+    void CloneBlockDir (const string &DirName, const string &DstName, BlockList &BL);
+
+    // return all the subdirectories and files within a directory
+    void SlurpDir (const string &Dir, vecstr &SubDirs, vecstr &SubFiles);
 }
 
 #endif // UTILS_H

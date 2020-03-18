@@ -8,8 +8,8 @@
 #include <filesystem>
 namespace fs = std::filesystem;
 
-vector <string> Utils::SplitStr (string Src, const string &Pat) {
-    vector <string> Toks;
+vecstr Utils::SplitStr (string Src, const string &Pat) {
+    vecstr Toks;
     while (Src.size()) {
         auto TokEnd = Src.find (Pat);
         string Tok = Src.substr (0, TokEnd);
@@ -50,7 +50,7 @@ string Utils::CanonizeFileName (const string &RawName) {
     }
 
     // tokenize by spliting on "/"
-    vector <string> Toks = Utils::SplitStr (FullName, "/");
+    vecstr Toks = Utils::SplitStr (FullName, "/");
 
     // discard all instances of "", ".", and "dir/.."
     for (auto itr = Toks.begin(); itr < Toks.end(); itr++) {
@@ -74,7 +74,7 @@ string Utils::CanonizeFileName (const string &RawName) {
     return CanName;
 }
 
-string Utils::JoinStrs (const vector <string> &Parts, const string &Sep) {
+string Utils::JoinStrs (const vecstr &Parts, const string &Sep) {
     string Joined;
     bool first = 1;
     for (auto &Part : Parts) {
@@ -175,4 +175,33 @@ void Utils::SetModTime (const string &Name, uint64_t Time) {
 void Utils::MakeHardLink (const string &ExistingFile, const string &NewName) {
     if (link (ExistingFile.c_str(), NewName.c_str()) != 0)
         THROW_PBEXCEPTION_IO ("Can't create hard link (%s) to target (%s)", NewName.c_str(), ExistingFile.c_str());
+}
+
+void Utils::CloneBlockDir (const string &SrcDir, const string &DstDir, BlockList &DstBlocks) {
+    CreateDir (DstDir);
+
+    vecstr SubDirs, SubFiles;
+    SlurpDir (SrcDir, SubDirs, SubFiles);
+
+    // hardlink all the files
+    // add to allocated blocks
+    for (auto &File : SubFiles) {
+        MakeHardLink (SrcDir + "/" + File, DstDir + "/" + File);
+        DstBlocks.MarkAllocated (strtoull(File.c_str(), NULL, 10));
+    }
+
+    // recurse into subdirs
+    for (auto &Dir : SubDirs)
+        CloneBlockDir (SrcDir + "/" + Dir, DstDir + "/" + Dir, DstBlocks);
+}
+
+void Utils::SlurpDir (const string &Dir, vecstr &SubDirs, vecstr &SubFiles) {
+    for (const auto& entry : filesystem::directory_iterator(Dir)) {
+        fs::path SubPath = entry.path();
+        string   SubName = SubPath.filename().string();
+        if (is_directory (SubPath))
+            SubDirs.push_back(SubName);
+        else if (is_regular_file (SubPath))
+            SubFiles.push_back(SubName);
+    }
 }

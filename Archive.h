@@ -21,7 +21,7 @@ class HashAndCompressReturn {
 
     BusyLock     BL;
     char         CompFlag;
-    BlockIdxType BlockIdx;
+    i64          BlockIdx;
     string       HashHex;
 };
 
@@ -69,14 +69,14 @@ class ArchiveCreate : public Archive {
     ~ArchiveCreate ();
 
     void Init         (RepoInfo *repo, const string &name);
-    void PushFileList (const string &Fname, BlockIdxType Block, eCompType CompType, const string &Hash);
+    void PushFileList (const string &Fname, i64 Block, eCompType CompType, const string &Hash);
 };
 
 class ArchFile {
     public:
     Archive           *Arch;
     string             Name;
-    BlockIdxType       InfoBlkNum;
+    i64                InfoBlkNum;
     eCompType          InfoBlkComp;
     string             InfoBlkHash;
     mutex              Mtx;
@@ -95,7 +95,7 @@ class ArchFileRead : public ArchFile {
     ~ArchFileRead ();
 
     void DoExtract  ();
-    void SlurpFinfo (BlockIdxType Idx, string &FInfoPacked);
+    void SlurpFinfo (i64 Idx, string &FInfoPacked);
 };
 
 class ArchFileCreate : public ArchFile {

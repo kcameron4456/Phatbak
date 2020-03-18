@@ -257,13 +257,17 @@ ArchFileRead::~ArchFileRead () {
     DBGDTOR;
 }
 
-mutex PushFileListMtx;
-void ArchiveCreate::PushFileList (const string &Fname, BlockIdxType Block, eCompType CompType, const string &Hash) {
+void ArchiveCreate::PushFileList (const string &Fname, i64 Block, eCompType CompType, const string &Hash) {
     string FileEntry = Fname + " /../ " + to_string(Block) + " " +
                        Comp::CompType2CompFlag(CompType) + " " + Hash + "\n";
-    PushFileListMtx.lock();
+
+    // prevent corruption when multiple threads are creating file entries
+    static mutex LocalMtx;
+    LocalMtx.lock();
+
     ListFile << FileEntry;
-    PushFileListMtx.unlock();
+
+    LocalMtx.unlock();
 }
 
 ArchFileCreate::ArchFileCreate (ArchiveCreate *arch, LiveFile *lf) : ArchFile (arch) {
