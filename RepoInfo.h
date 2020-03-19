@@ -13,6 +13,7 @@ class RepoInfo {
     string LatestArchName;
 
     RepoInfo (const string &name);
+    void Finish (const string &ArchName);
 };
 
 #endif // REPOINFO_H

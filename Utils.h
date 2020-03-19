@@ -63,6 +63,9 @@ namespace Utils {
 
     // return all the subdirectories and files within a directory
     void SlurpDir (const string &Dir, vecstr &SubDirs, vecstr &SubFiles);
+
+    // touch a file
+    void Touch (const string &Name);
 }
 
 #endif // UTILS_H

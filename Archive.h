@@ -30,6 +30,7 @@ class Archive {
     RepoInfo     *Repo;
     string        Name;
     string        ArchDirPath;
+    string        IDPath;
     string        ListPath;
     string        LogPath;
     string        OptionsPath;
@@ -62,10 +63,16 @@ class ArchiveRead : public Archive {
     void DoExtractJob (const string &FileLine, uint64_t LineNo);
 };
 
+class ArchiveReference : public ArchiveRead {
+    public:
+    ArchiveReference (RepoInfo *repo, const string &name, Opts &o) : ArchiveRead (repo, name, o) {}
+};
+
 class ArchiveCreate : public Archive {
     public:
+    ArchiveReference *ArchRef;
 
-     ArchiveCreate (RepoInfo *repo, const string &name);
+     ArchiveCreate (RepoInfo *repo, const string &name, ArchiveReference *ref);
     ~ArchiveCreate ();
 
     void Init         (RepoInfo *repo, const string &name);
@@ -110,9 +117,6 @@ class ArchFileCreate : public ArchFile {
     void CreateJob  (bool Keep);            // add file to archive (runs within thread)
     void CreateLink (ArchFileCreate *Prev); // link to previously archived file
     void HashAndCompressJob (string &Chunk, HashAndCompressReturn *HACR);
-};
-
-class ArchiveReference : public ArchiveRead {
 };
 
 #endif // ARCHIVE_H

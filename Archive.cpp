@@ -15,6 +15,7 @@ Archive::Archive(RepoInfo *repo, const string &name) {
     Repo         = repo;
     Name         = name;
     ArchDirPath  = Repo->Name + "/" + Name;
+    IDPath       = ArchDirPath + "/" + PHATBAK_ARCH_ID;
     ListPath     = ArchDirPath + "/List";
     LogPath      = ArchDirPath + "/PhatBak.log";
     OptionsPath  = ArchDirPath + "/Options";
@@ -34,6 +35,9 @@ ArchiveRead::ArchiveRead (RepoInfo *repo, const string &name, Opts &o) : Archive
     O = o;
     ParseOptions ();
 
+    if (!fs::exists (IDPath))
+        THROW_PBEXCEPTION_FMT ("%s don't exist");
+
     FInfoBlocks = new BlockList (FinfoDirPath, O);
     ChunkBlocks = new BlockList (ChunkDirPath, O);
 }
@@ -42,13 +46,17 @@ ArchiveRead::~ArchiveRead() {
     DBGDTOR;
 }
 
-ArchiveCreate::ArchiveCreate (RepoInfo *repo, const string &name) : Archive (repo, name) {
+ArchiveCreate::ArchiveCreate (RepoInfo *repo, const string &name, ArchiveReference *ref) : Archive (repo, name) {
     DBGCTOR;
-    Repo = repo;
-    Name = name;
+    ArchRef = ref;
 
     // create archive dir
+    if (fs::exists (ArchDirPath))
+        THROW_PBEXCEPTION ("Archive (%s) already exists. Can't overwrite", ArchDirPath.c_str());
     CreateDir (ArchDirPath);
+
+    // mark it as a PhatBak archive
+    Touch (IDPath);
 
     // create the log file
     LogFile = OpenWriteStream (LogPath);

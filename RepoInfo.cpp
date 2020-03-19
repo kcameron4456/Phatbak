@@ -18,7 +18,17 @@ RepoInfo::RepoInfo (const string &name) {
 
     // check for previous reference archive 
     LatestArchName = "";
-    fs::path LatestArchPath = Name + "/LatestArchive";
-    if (fs::is_symlink (LatestArchPath))
-        LatestArchName = read_symlink (LatestArchPath);
+    string LatestArchLink = Name + "/LatestArchive";
+printf ("LatestArchLink = %s\n", LatestArchLink.c_str());
+    if (fs::exists (LatestArchLink + "/" PHATBAK_ARCH_ID))
+        LatestArchName = fs::read_symlink (LatestArchLink);
+}
+
+void RepoInfo::Finish (const string &ArchName) {
+    string LinkName = Name + "/LatestArchive";
+    error_code ec;
+    fs::remove                   (          LinkName, ec);
+    fs::create_directory_symlink (ArchName, LinkName, ec);
+    if (ec)
+        THROW_PBEXCEPTION_IO ("Can't create symlink: %s", LinkName.c_str());
 }

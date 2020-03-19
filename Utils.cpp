@@ -205,3 +205,10 @@ void Utils::SlurpDir (const string &Dir, vecstr &SubDirs, vecstr &SubFiles) {
             SubFiles.push_back(SubName);
     }
 }
+
+void Utils::Touch (const string &Name) {
+    fstream Strm (Name.c_str(), fstream::out | fstream::app);
+    if (Strm.fail())
+        THROW_PBEXCEPTION_IO ("Can't open %s for touch", Name.c_str());
+    Strm.close();
+}

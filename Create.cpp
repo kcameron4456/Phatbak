@@ -6,32 +6,42 @@
 #include <string>
 #include <vector>
 #include <filesystem>
+#include <iostream>
 using namespace std;
 namespace fs = std::filesystem;
 
 Create::Create () {
     Repo = new RepoInfo   (O.RepoDirName);
-    Arch = new ArchiveCreate (Repo, O.ArchDirName);
+
+    // see if we want to reference the new archive to a previous one
+cout << Repo->LatestArchName << " " << O.ArchDirName << endl;
+    bool Rebase = O.Rebase || Repo->LatestArchName == "" || Repo->LatestArchName == O.ArchDirName;
+    ArchRef = NULL;
+    if (Rebase) {
+        printf ("Creating new base archive: %s::%s\n", Repo->Name.c_str(), O.ArchDirName.c_str());
+    } else {
+        printf ("Creating archive: %s::%s using reference archive: %s::%s\n",
+                Repo->Name.c_str(), O.ArchDirName.c_str(), Repo->Name.c_str(), Repo->LatestArchName.c_str());
+
+        ArchRef = new ArchiveReference (Repo, Repo->LatestArchName, O);
+    }
+
+    Arch = new ArchiveCreate (Repo, O.ArchDirName, ArchRef);
 }
 
 Create::~Create () {
     delete Arch;
+    if (ArchRef)
+        delete ArchRef;
     delete Repo;
 }
 
 void Create::DoCreate () {
-    // see if we want to reference the new archive to a previous one
-    bool Rebase = O.Rebase || Repo->LatestArchName == "";
-    if (Rebase) {
-        printf ("Creating new base archive: %s\n", ArchDirName.c_str());
-    } else {
-        printf ("Creating archive: %s using reference archive: %s\n",
-                ArchDirName.c_str(), Repo->LatestArchName.c_str());
-    }
-
     // do the archive creation
     for (auto Dir : O.FileArgs)
         DoCreate (Utils::CanonizeFileName (Dir));
+
+    Repo->Finish(O.ArchDirName);
 }
 
 void Create::DoCreate (const string &Name) {

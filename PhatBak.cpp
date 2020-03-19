@@ -17,8 +17,7 @@ int main (int argc, const char **argv) {
 
         if (O.Operation == Opts::DoCreate) {
             Create *C = new Create;
-            for (auto Dir : O.FileArgs)
-                C->DoCreate (Utils::CanonizeFileName (Dir));
+            C->DoCreate ();
             delete C;
         } else if (O.Operation == Opts::DoExtract) {
             Extract *E = new Extract;
