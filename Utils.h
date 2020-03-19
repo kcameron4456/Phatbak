@@ -66,6 +66,9 @@ namespace Utils {
 
     // touch a file
     void Touch (const string &Name);
+
+    // link a file to a new name
+    void Link (const string &Name, const string &Target);
 }
 
 #endif // UTILS_H

@@ -27,12 +27,12 @@ class Opts {
     string    ArchDirName;      // Archive directory withing the repo
     int       BlockNumDigits;   // Number of digits to assign to each level of a blocked directory
     int       BlockNumModulus;  // Amount by which divide block indices to create block levels
-    eHashType HashType;         // hash algorithm
     unsigned  ChunkSize;        // Max size of data blocks into which file data are stored
+    eHashType HashType;         // hash algorithm
+    eCompType CompType;         // type of per-file-block compression to use
     bool      ShowFiles;        // Show file names as they are archived or extracted
     bool      ArchDiag;         // Show diagnostic for archive file blocks in Test mode
     int       NumThreads;       // number of helper threads to launch
-    eCompType CompType;         // type of per-file-block compression to use
     int       CompLevel;        // compression effort
     string    ExtractTarget;    // directory into which to place files extracted from an Archive
     bool      Rebase;           // true to force a new base archive on create

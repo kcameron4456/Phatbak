@@ -7,7 +7,7 @@ namespace fs = std::filesystem;
 
 Extract::Extract () {
     Repo = new RepoInfo (O.RepoDirName);
-    Arch = new ArchiveRead (Repo, O.ArchDirName, O);
+    Arch = new ArchiveRead (Repo, O.ArchDirName);
 }
 
 Extract::~Extract () {

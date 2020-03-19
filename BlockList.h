@@ -46,6 +46,10 @@ class BlockList {
     void    SlurpBlock      (i64 Idx,       string &BufStr);
     void    SpitBlock       (i64 Idx, const string &BufStr);
     i64     SpitNewBlock    (         const string &BufStr);
+    void    Link            (i64 Idx, const string &Target);
+    void    Clone           (BlockList &Ref);
+    void    ReverseAlloc    ();
+    void    ReverseAlloc    (const string &Dir);
 };
 
 #endif // BLOCKLIST_H

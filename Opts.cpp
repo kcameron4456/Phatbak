@@ -271,15 +271,17 @@ string Opts::OptsString () {
     F << "Options:\n";
     F << "   CmdLine         = " << CmdLine                         << endl;
     F << "   Operation       = " << OpText()                        << endl;
+    F << "   FileArgs        = " << Utils::JoinStrs (FileArgs, " ") << endl;
     F << "   RepoDirName     = " << RepoDirName                     << endl;
     F << "   ArchDirName     = " << ArchDirName                     << endl;
-    F << "   ShowFiles       = " << ShowFiles                       << endl;
-    F << "   FileArgs        = " << Utils::JoinStrs (FileArgs, " ") << endl;
+    F << "   RefArchive      = " << RefArchive                      << endl;
     F << "   BlockNumDigits  = " << BlockNumDigits                  << endl;
     F << "   BlockNumModulus = " << BlockNumModulus                 << endl;
     F << "   ChunkSize       = " << ChunkSize                       << endl;
     F << "   HashType        = " << HashNames[HashType]             << endl;
     F << "   CompType        = " << CompNames[CompType]             << endl;
     F << "   CompLevel       = " << CompLevel                       << endl;
+    F << "   ShowFiles       = " << ShowFiles                       << endl;
+    F << "   DebugPrint      = " << DebugPrint                      << endl;
     return F.str();
 }

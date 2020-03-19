@@ -18,10 +18,17 @@ RepoInfo::RepoInfo (const string &name) {
 
     // check for previous reference archive 
     LatestArchName = "";
-    string LatestArchLink = Name + "/LatestArchive";
-printf ("LatestArchLink = %s\n", LatestArchLink.c_str());
-    if (fs::exists (LatestArchLink + "/" PHATBAK_ARCH_ID))
-        LatestArchName = fs::read_symlink (LatestArchLink);
+    if (O.RefArchive == "") {
+        string LatestArchLink = Name + "/LatestArchive";
+        if (fs::exists (LatestArchLink + "/" PHATBAK_ARCH_ID))
+            LatestArchName = fs::read_symlink (LatestArchLink);
+    } else {
+        string TryName = O.RefArchive;
+        if (fs::exists (Name + "/" + TryName + "/" PHATBAK_ARCH_ID))
+            LatestArchName = TryName;
+        else
+            THROW_PBEXCEPTION_FMT ("Reference archive (%s) doesn't exist", O.RefArchive.c_str());
+    }
 }
 
 void RepoInfo::Finish (const string &ArchName) {

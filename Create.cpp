@@ -23,7 +23,7 @@ cout << Repo->LatestArchName << " " << O.ArchDirName << endl;
         printf ("Creating archive: %s::%s using reference archive: %s::%s\n",
                 Repo->Name.c_str(), O.ArchDirName.c_str(), Repo->Name.c_str(), Repo->LatestArchName.c_str());
 
-        ArchRef = new ArchiveReference (Repo, Repo->LatestArchName, O);
+        ArchRef = new ArchiveReference (Repo, Repo->LatestArchName);
     }
 
     Arch = new ArchiveCreate (Repo, O.ArchDirName, ArchRef);

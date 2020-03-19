@@ -4,7 +4,6 @@
 #include "LiveFile.h"
 #include "RepoInfo.h"
 #include "BlockList.h"
-#include "Opts.h"
 #include "Types.h"
 #include "BusyLock.h"
 
@@ -12,7 +11,7 @@
 #include <vector>
 #include <stdio.h>
 #include <mutex>
-#include <atomic>
+#include <fstream>
 using namespace std;
 
 // returns info from thread to archfilecreate
@@ -23,6 +22,17 @@ class HashAndCompressReturn {
     char         CompFlag;
     i64          BlockIdx;
     string       HashHex;
+};
+
+// feilds of "List" file
+class FileListEntry {
+    public:
+    string    Name;
+    u64       BlkNum;
+    eCompType CompType;
+    string    Hash;
+     FileListEntry() {}
+    ~FileListEntry() {}
 };
 
 class Archive {
@@ -44,28 +54,33 @@ class Archive {
 
      Archive (RepoInfo *repo, const string &name);
     ~Archive ();
+
+    FileListEntry ParseListLine (const string &ListLine, u64 LineNo);
 };
 
 class ArchiveRead : public Archive {
-    map <uint64_t, string> InfoBlockIds;
+    map <u64, string> InfoBlockIds;
     mutex                  InfoBlockIdsMtx;
-    map <string, uint64_t> ModTimes;
+    map <string, u64> ModTimes;
     mutex                  ModTimesMtx;
 
     void ParseOptions();
 
     public:
-    Opts                   O;
 
-     ArchiveRead (RepoInfo *repo, const string &name, Opts &o);
+     ArchiveRead (RepoInfo *repo, const string &name);
     ~ArchiveRead ();
-    void DoExtract();
-    void DoExtractJob (const string &FileLine, uint64_t LineNo);
+
+    void          DoExtract      ();
+    void          DoExtractJob   (const string &FileLine, u64 LineNo);
 };
 
 class ArchiveReference : public ArchiveRead {
     public:
-    ArchiveReference (RepoInfo *repo, const string &name, Opts &o) : ArchiveRead (repo, name, o) {}
+    map <string, FileListEntry> FileMap;
+
+     ArchiveReference (RepoInfo *repo, const string &name);
+    ~ArchiveReference ();
 };
 
 class ArchiveCreate : public Archive {
@@ -76,16 +91,14 @@ class ArchiveCreate : public Archive {
     ~ArchiveCreate ();
 
     void Init         (RepoInfo *repo, const string &name);
-    void PushFileList (const string &Fname, i64 Block, eCompType CompType, const string &Hash);
+    void PushFileList (const FileListEntry &ListEntry);
 };
 
 class ArchFile {
     public:
     Archive           *Arch;
     string             Name;
-    i64                InfoBlkNum;
-    eCompType          InfoBlkComp;
-    string             InfoBlkHash;
+    FileListEntry      ListEntry;
     mutex              Mtx;
     string             Stats;
     string             LinkTarget;
@@ -98,18 +111,18 @@ class ArchFile {
 class ArchFileRead : public ArchFile {
     public:
 
-     ArchFileRead (ArchiveRead *arch, const string &ListEntry, uint64_t LineNo);
+     ArchFileRead (ArchiveRead *arch, const string &ListEntry, u64 LineNo);
     ~ArchFileRead ();
 
-    void DoExtract  ();
-    void SlurpFinfo (i64 Idx, string &FInfoPacked);
+    void          DoExtract      ();
+    void          SlurpFinfo     (i64 Idx, string &FInfoPacked);
 };
 
 class ArchFileCreate : public ArchFile {
     public:
     string            Name;
     LiveFile         *LF;
-    vector <uint64_t> DataBlkNs;
+    vector <u64> DataBlkNs;
 
     ArchFileCreate (ArchiveCreate *arch, LiveFile *lf);
 

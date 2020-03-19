@@ -10,6 +10,7 @@ using namespace Utils;
 #include <filesystem>
 namespace fs = std::filesystem;
 
+//////////////////////////////////////////////////////////////////////
 Archive::Archive(RepoInfo *repo, const string &name) {
     DBGCTOR;
     Repo         = repo;
@@ -30,9 +31,30 @@ Archive::~Archive() {
     ListFile.close();
 }
 
-ArchiveRead::ArchiveRead (RepoInfo *repo, const string &name, Opts &o) : Archive (repo, name) {
+FileListEntry Archive::ParseListLine (const string &ListLine, u64 LineNo) {
+    FileListEntry Res;
+
+    // parse file list entry
+    // separate filename from attributes
+    vector <string> FirstCut = SplitStr (ListLine, " /../ ");
+    if (FirstCut.size() != 2)
+        THROW_PBEXCEPTION_FMT ("%s:%llu has bad format", ListPath.c_str(), LineNo);
+    Res.Name = FirstCut[0];
+
+    // separate fields of rhs
+    vector <string> RHSToks = SplitStr (FirstCut[1], " ");
+    if (RHSToks.size() != 3)
+        THROW_PBEXCEPTION_FMT ("%s:%llu has bad format", ListPath.c_str(), LineNo);
+    Res.BlkNum   = stoull (RHSToks[0]);
+    Res.CompType = Comp::CompFlag2CompType(RHSToks[1][0], O);
+    Res.Hash     = RHSToks[2];
+
+    return Res;
+}
+
+//////////////////////////////////////////////////////////////////////
+ArchiveRead::ArchiveRead (RepoInfo *repo, const string &name) : Archive (repo, name) {
     DBGCTOR;
-    O = o;
     ParseOptions ();
 
     if (!fs::exists (IDPath))
@@ -46,6 +68,30 @@ ArchiveRead::~ArchiveRead() {
     DBGDTOR;
 }
 
+//////////////////////////////////////////////////////////////////////
+ArchiveReference::ArchiveReference (RepoInfo *repo, const string &name) : ArchiveRead (repo, name) {
+    // create a list of files with first-order info
+    fstream FL = OpenReadStream (ListPath);
+    string Line;
+    u64 LineCount = 0;
+DBG ("ArchiveReference this=%p\n", this);
+    while (getline (FL, Line)) {
+        LineCount ++;
+        FileListEntry FLE = ParseListLine (Line, LineCount);
+DBG ("ArchiveReference Name=%s\n", FLE.Name.c_str());
+        FileMap [FLE.Name] = FLE;
+    }
+    FL.close();
+
+    // load the finfo and chunk blocklists based on existing files
+    FInfoBlocks->ReverseAlloc ();
+    ChunkBlocks->ReverseAlloc ();
+}
+
+ArchiveReference::~ArchiveReference () {
+}
+
+//////////////////////////////////////////////////////////////////////
 ArchiveCreate::ArchiveCreate (RepoInfo *repo, const string &name, ArchiveReference *ref) : Archive (repo, name) {
     DBGCTOR;
     ArchRef = ref;
@@ -75,6 +121,12 @@ ArchiveCreate::ArchiveCreate (RepoInfo *repo, const string &name, ArchiveReferen
     FInfoBlocks = new BlockList (FinfoDirPath, O);
     ChunkBlocks = new BlockList (ChunkDirPath, O);
 
+    // if using a reference arch, clone the block lists
+    if (ArchRef) {
+        FInfoBlocks->Clone (*ArchRef->FInfoBlocks);
+        ChunkBlocks->Clone (*ArchRef->ChunkBlocks);
+    }
+
     // start the file list
     ListFile = OpenWriteStream (ListPath);
 }
@@ -97,6 +149,23 @@ ArchiveCreate::~ArchiveCreate () {
     delete FInfoBlocks;
 }
 
+void ArchiveCreate::PushFileList (const FileListEntry &ListEntry) {
+    string FileLine = ListEntry.Name                               + " /../ "
+                     + to_string(ListEntry.BlkNum)                 + " "
+                     + Comp::CompType2CompFlag(ListEntry.CompType) + " "
+                     + ListEntry.Hash                              + "\n"
+                     ;
+
+    // prevent corruption when multiple threads are creating file entries
+    static mutex LocalMtx;
+    LocalMtx.lock();
+
+    ListFile << FileLine;
+
+    LocalMtx.unlock();
+}
+
+//////////////////////////////////////////////////////////////////////
 void ArchiveRead::ParseOptions () {
     // extract options from the archive file
     fstream OptsFile = OpenReadStream (OptionsPath);
@@ -128,13 +197,13 @@ void ArchiveRead::ParseOptions () {
     OptsFile.close();
 }
 
-void ArchiveRead::DoExtractJob (const string &FileLine, uint64_t LineNo) {
+void ArchiveRead::DoExtractJob (const string &FileLine, u64 LineNo) {
     // extract information about the archived file
     ArchFileRead *AF = new ArchFileRead (this, FileLine, LineNo);
 
     InfoBlockIdsMtx.lock();
-    bool DoHLink = InfoBlockIds.find (AF->InfoBlkNum) != InfoBlockIds.end();
-    string LTarget = DoHLink ? InfoBlockIds[AF->InfoBlkNum]
+    bool DoHLink = InfoBlockIds.find (AF->ListEntry.BlkNum) != InfoBlockIds.end();
+    string LTarget = DoHLink ? InfoBlockIds[AF->ListEntry.BlkNum]
                              : AF->LinkTarget;
     InfoBlockIdsMtx.unlock();
 
@@ -146,7 +215,7 @@ void ArchiveRead::DoExtractJob (const string &FileLine, uint64_t LineNo) {
 
     if (!DoHLink) {
         InfoBlockIdsMtx.lock();
-        InfoBlockIds[AF->InfoBlkNum] = LF->Name;
+        InfoBlockIds[AF->ListEntry.BlkNum] = LF->Name;
         InfoBlockIdsMtx.unlock();
     }
 
@@ -159,7 +228,7 @@ void ArchiveRead::DoExtract () {
     auto ListFile = OpenReadStream (ListPath);
 
     // parse and extract all the entries in the list
-    uint64_t LineNo = 0;
+    u64 LineNo = 0;
     string FileLine;
     while (getline (ListFile, FileLine)) {
         LineNo ++;
@@ -186,6 +255,7 @@ void ArchiveRead::DoExtract () {
     ListFile.close();
 }
 
+//////////////////////////////////////////////////////////////////////
 ArchFile::ArchFile (Archive *arch) {
     DBGCTOR;
     Arch = arch;
@@ -195,41 +265,29 @@ ArchFile::~ArchFile () {
     DBGDTOR;
 }
 
-ArchFileRead::ArchFileRead (ArchiveRead *arch, const string &ListEntry, uint64_t LineNo) : ArchFile (arch) {
+//////////////////////////////////////////////////////////////////////
+ArchFileRead::ArchFileRead (ArchiveRead *arch, const string &ListLine, u64 LineNo) : ArchFile (arch) {
     DBGCTOR;
-
     Arch = arch;
-    // parse file list entry
-    // separate filename from attributes
-    vector <string> FirstCut = SplitStr (ListEntry, " /../ ");
-    if (FirstCut.size() != 2)
-        THROW_PBEXCEPTION_FMT ("%s:%llu has bad format", Arch->ListPath.c_str(), LineNo);
-    Name = FirstCut[0];
 
-    // separate fields of rhs
-    vector <string> RHSToks = SplitStr (FirstCut[1], " ");
-    if (RHSToks.size() != 3)
-        THROW_PBEXCEPTION_FMT ("%s:%llu has bad format", Arch->ListPath.c_str(), LineNo);
-    InfoBlkNum  = stoull (RHSToks[0]);
-    InfoBlkComp = Comp::CompFlag2CompType(RHSToks[1][0], O);
-    InfoBlkHash = RHSToks[2];
+    ListEntry = Arch->ParseListLine (ListLine, LineNo);
 
     // extract information from the FInfo block
     string FInfoPacked;
-    Arch->FInfoBlocks->SlurpBlock (InfoBlkNum, FInfoPacked);
+    Arch->FInfoBlocks->SlurpBlock (ListEntry.BlkNum, FInfoPacked);
 
     // decompress
     string *SelData = &FInfoPacked;
     string  DeCompressed;
-    if (InfoBlkComp != CompType_NONE) {
-        Comp::DeCompress (InfoBlkComp, FInfoPacked, DeCompressed);
+    if (ListEntry.CompType != CompType_NONE) {
+        Comp::DeCompress (ListEntry.CompType, FInfoPacked, DeCompressed);
         SelData = &DeCompressed;
     }
 
     // check hash
-    string FInfoHashFound = HashStr (((ArchiveRead*)Arch)->O.HashType, *SelData);
-    if (FInfoHashFound != InfoBlkHash)
-        THROW_PBEXCEPTION_FMT ("Hash mismatch on FInfo block #%llu", InfoBlkNum);
+    string FInfoHashFound = HashStr (O.HashType, *SelData);
+    if (FInfoHashFound != ListEntry.Hash)
+        THROW_PBEXCEPTION_FMT ("Hash mismatch on FInfo block #%llu", ListEntry.BlkNum);
 
     // parse finfo
     vector <string> FInfoLines = SplitStr (*SelData, "\n");
@@ -265,19 +323,7 @@ ArchFileRead::~ArchFileRead () {
     DBGDTOR;
 }
 
-void ArchiveCreate::PushFileList (const string &Fname, i64 Block, eCompType CompType, const string &Hash) {
-    string FileEntry = Fname + " /../ " + to_string(Block) + " " +
-                       Comp::CompType2CompFlag(CompType) + " " + Hash + "\n";
-
-    // prevent corruption when multiple threads are creating file entries
-    static mutex LocalMtx;
-    LocalMtx.lock();
-
-    ListFile << FileEntry;
-
-    LocalMtx.unlock();
-}
-
+//////////////////////////////////////////////////////////////////////
 ArchFileCreate::ArchFileCreate (ArchiveCreate *arch, LiveFile *lf) : ArchFile (arch) {
     DBGCTOR;
     LF     = lf;
@@ -312,6 +358,14 @@ void ArchFileCreate::HashAndCompressJob (string &Chunk, HashAndCompressReturn *H
 }
 
 void ArchFileCreate::CreateJob (bool Keep) {
+    // check against reference archive
+DBG ("CreateJob Name=%s\n", Name.c_str());
+    ArchiveReference *RefArch = ((ArchiveCreate*)Arch)->ArchRef;
+    if (RefArch && RefArch->FileMap.count (Name)) {
+        auto FileEntry = RefArch->FileMap[Name];
+DBG ("CreateJob %s found in ref archive\n", Name.c_str());
+    }
+
     // get string version of stats for FInfo
     Stats = LF->MakeInfoHeader ();
 
@@ -360,25 +414,26 @@ void ArchFileCreate::CreateJob (bool Keep) {
     // compress the finfo
     // if compression doesn't help, keep it uncompressed
     string *SelFInfo = &FInfo;
-    InfoBlkComp = CompType_NONE;
+    ListEntry.CompType = CompType_NONE;
     string Compressed;
     if (O.CompType != CompType_NONE) {
         Comp::Compress (FInfo, Compressed);
         if (Compressed.size() < FInfo.size()) {
             SelFInfo    = &Compressed;
-            InfoBlkComp = O.CompType;
+            ListEntry.CompType = O.CompType;
         }
     }
 
     // Put the file info block in the archive
-    InfoBlkNum = Arch->FInfoBlocks->SpitNewBlock (*SelFInfo);
+    ListEntry.BlkNum = Arch->FInfoBlocks->SpitNewBlock (*SelFInfo);
 
     // get the finfo block hash
     Hash Hasher (O.HashType);
-    InfoBlkHash = Hasher.HashStr(FInfo);
+    ListEntry.Hash = Hasher.HashStr(FInfo);
 
     // update archive file list
-    ((ArchiveCreate*)Arch)->PushFileList (Name, InfoBlkNum, InfoBlkComp, InfoBlkHash);
+    ListEntry.Name = Name;
+    ((ArchiveCreate*)Arch)->PushFileList (ListEntry);
 
     // flag completion
     Mtx.unlock();
@@ -408,10 +463,15 @@ void ArchFileCreate::CreateLink (ArchFileCreate *Prev) {
     // wait for processing of original file to complete
     Prev->Mtx.lock();
 
-    ((ArchiveCreate*)Arch)->PushFileList (Name, Prev->InfoBlkNum, Prev->InfoBlkComp, Prev->InfoBlkHash);
+    ListEntry      = Prev->ListEntry;
+    ListEntry.Name = Name;
+    ((ArchiveCreate*)Arch)->PushFileList (ListEntry);
 
     // release prev file
     Prev->Mtx.unlock();
+
+    // release this file (even though nobody will be waiting for this one)
+    Mtx.unlock();
 
     // we're done with the Live File
     delete LF;
@@ -419,3 +479,5 @@ void ArchFileCreate::CreateLink (ArchFileCreate *Prev) {
     // this archive file won't be used again
     delete this;
 }
+
+//////////////////////////////////////////////////////////////////////

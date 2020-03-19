@@ -251,3 +251,33 @@ i64 BlockList::SpitNewBlock (const string &BufStr) {
     SpitBlock (Blk, BufStr);
     return Blk;
 }
+
+void BlockList::Link (i64 Idx, const string &Target) {
+    string Dir = Idx2DirString (Idx);
+    Utils::CreateDir (Dir, 1);
+    string LinkName = Dir + "/" + to_string (Idx);
+    Utils::Link (LinkName, Target);
+}
+
+void BlockList::Clone (BlockList &Ref) {
+    for (auto &RefRange : Ref.Ranges)
+        for (i64 Idx = RefRange.min; Idx <= RefRange.max; Idx++) {
+            Link (Idx, Ref.Idx2FileName(Idx));
+            MarkAllocated (Idx);
+        }
+}
+
+void BlockList::ReverseAlloc () {
+    ReverseAlloc (TopDir);
+}
+
+void BlockList::ReverseAlloc (const string &Dir) {
+    vecstr SubDirs, SubFiles;
+    Utils::SlurpDir (Dir, SubDirs, SubFiles);
+
+    for (auto SubFile : SubFiles)
+        MarkAllocated (strtoull (SubFile.c_str(), NULL, 10));
+
+    for (auto SubDir : SubDirs)
+        ReverseAlloc (Dir + "/" + SubDir);
+}

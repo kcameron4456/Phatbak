@@ -212,3 +212,10 @@ void Utils::Touch (const string &Name) {
         THROW_PBEXCEPTION_IO ("Can't open %s for touch", Name.c_str());
     Strm.close();
 }
+
+void Utils::Link (const string &Name, const string &Target) {
+    error_code ec;
+    fs::create_hard_link (Target, Name, ec);
+    if (ec)
+        THROW_PBEXCEPTION_IO ("Error creating link:%s to target:%s :%s", Name.c_str(), Target.c_str(), ec.message().c_str());
+}
