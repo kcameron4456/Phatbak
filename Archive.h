@@ -60,9 +60,9 @@ class Archive {
 
 class ArchiveRead : public Archive {
     map <u64, string> InfoBlockIds;
-    mutex                  InfoBlockIdsMtx;
+    mutex             InfoBlockIdsMtx;
     map <string, u64> ModTimes;
-    mutex                  ModTimesMtx;
+    mutex             ModTimesMtx;
 
     void ParseOptions();
 
@@ -72,7 +72,7 @@ class ArchiveRead : public Archive {
     ~ArchiveRead ();
 
     void          DoExtract      ();
-    void          DoExtractJob   (const string &FileLine, u64 LineNo);
+    void          DoExtractJob   (const FileListEntry &ListEntry);
 };
 
 class ArchiveReference : public ArchiveRead {
@@ -111,7 +111,7 @@ class ArchFile {
 class ArchFileRead : public ArchFile {
     public:
 
-     ArchFileRead (ArchiveRead *arch, const string &ListEntry, u64 LineNo);
+     ArchFileRead (ArchiveRead *arch, const FileListEntry &ListEntry);
     ~ArchFileRead ();
 
     void          DoExtract      ();

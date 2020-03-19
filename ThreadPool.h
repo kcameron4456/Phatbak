@@ -37,8 +37,7 @@ class JobCtrl {
     } CreateFileInfo;
     struct {
         ArchiveRead    *Arch;
-        string          FileLine;
-        uint64_t        LineNo;
+        FileListEntry   ListEntry;
     } ExtractFileInfo;
     struct {
         ArchFileCreate        *AF;

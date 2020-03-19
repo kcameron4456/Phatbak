@@ -68,6 +68,95 @@ ArchiveRead::~ArchiveRead() {
     DBGDTOR;
 }
 
+void ArchiveRead::ParseOptions () {
+    // extract options from the archive file
+    fstream OptsFile = OpenReadStream (OptionsPath);
+    string OptLine;
+    while (getline (OptsFile, OptLine)) {
+        // split into name/value pairs
+        vector <string> Toks = SplitStr (OptLine, "=");
+
+        // skip non-option lines
+        if (Toks.size() != 2)
+            continue;
+
+        // clean up tokens
+        for (auto &Tok : Toks)
+            TrimStr (&Tok);
+
+        // rename tokens
+        string &OptName = Toks[0];
+        string &OptVal  = Toks[1];
+
+             if (OptName == "BlockNumDigits" ) O.BlockNumDigits  = stoull               (OptVal);
+        else if (OptName == "BlockNumModulus") O.BlockNumModulus = stoull               (OptVal);
+        else if (OptName == "ChunkSize"      ) O.ChunkSize       = stoull               (OptVal);
+        else if (OptName == "HashType"       ) O.HashType        = HashNameToEnum       (OptVal);
+        else if (OptName == "CompType"       ) O.CompType        = Comp::CompNameToEnum (OptVal);
+        else if (OptName == "CompLevel"      ) O.CompLevel       = stoull               (OptVal);
+    }
+
+    OptsFile.close();
+}
+
+void ArchiveRead::DoExtractJob (const FileListEntry &ListEntry) {
+    // extract information about the archived file
+    ArchFileRead *AF = new ArchFileRead (this, ListEntry);
+
+    InfoBlockIdsMtx.lock();
+    bool DoHLink = InfoBlockIds.find (AF->ListEntry.BlkNum) != InfoBlockIds.end();
+    string LTarget = DoHLink ? InfoBlockIds[AF->ListEntry.BlkNum]
+                             : AF->LinkTarget;
+    InfoBlockIdsMtx.unlock();
+
+    // create extracted file
+    LiveFile *LF = new LiveFile (AF->Name, AF->Stats, LTarget,
+                                 AF->Chunks, ChunkBlocks,
+                                 ModTimes, &ModTimesMtx,
+                                 DoHLink);
+
+    if (!DoHLink) {
+        InfoBlockIdsMtx.lock();
+        InfoBlockIds[AF->ListEntry.BlkNum] = LF->Name;
+        InfoBlockIdsMtx.unlock();
+    }
+
+    delete LF;
+    delete AF;
+}
+
+void ArchiveRead::DoExtract () {
+    // open the file list
+    auto ListFile = OpenReadStream (ListPath);
+
+    // parse and extract all the entries in the list
+    u64 LineNo = 0;
+    string FileLine;
+    while (getline (ListFile, FileLine)) {
+        LineNo ++;
+        FileListEntry ListEntry = ParseListLine (FileLine, LineNo);
+
+        if (O.NumThreads) {
+            JobCtrl *Job = ThreadPool.AllocThread();
+            Job->JobType = JobCtrl::ExtractFile;
+            Job->ExtractFileInfo.Arch      = this;
+            Job->ExtractFileInfo.ListEntry = ListEntry;
+            Job->Go();
+        } else {
+            DoExtractJob (ListEntry);
+        }
+    }
+
+    // wait for all jobs to finish
+    ThreadPool.WaitIdle();
+
+    // handle defered modification times
+    for (auto& [Name, Time]: ModTimes)
+        SetModTime (Name, Time);
+
+    ListFile.close();
+}
+
 //////////////////////////////////////////////////////////////////////
 ArchiveReference::ArchiveReference (RepoInfo *repo, const string &name) : ArchiveRead (repo, name) {
     // create a list of files with first-order info
@@ -166,96 +255,6 @@ void ArchiveCreate::PushFileList (const FileListEntry &ListEntry) {
 }
 
 //////////////////////////////////////////////////////////////////////
-void ArchiveRead::ParseOptions () {
-    // extract options from the archive file
-    fstream OptsFile = OpenReadStream (OptionsPath);
-    string OptLine;
-    while (getline (OptsFile, OptLine)) {
-        // split into name/value pairs
-        vector <string> Toks = SplitStr (OptLine, "=");
-
-        // skip non-option lines
-        if (Toks.size() != 2)
-            continue;
-
-        // clean up tokens
-        for (auto &Tok : Toks)
-            TrimStr (&Tok);
-
-        // rename tokens
-        string &OptName = Toks[0];
-        string &OptVal  = Toks[1];
-
-             if (OptName == "BlockNumDigits" ) O.BlockNumDigits  = stoull               (OptVal);
-        else if (OptName == "BlockNumModulus") O.BlockNumModulus = stoull               (OptVal);
-        else if (OptName == "ChunkSize"      ) O.ChunkSize       = stoull               (OptVal);
-        else if (OptName == "HashType"       ) O.HashType        = HashNameToEnum       (OptVal);
-        else if (OptName == "CompType"       ) O.CompType        = Comp::CompNameToEnum (OptVal);
-        else if (OptName == "CompLevel"      ) O.CompLevel       = stoull               (OptVal);
-    }
-
-    OptsFile.close();
-}
-
-void ArchiveRead::DoExtractJob (const string &FileLine, u64 LineNo) {
-    // extract information about the archived file
-    ArchFileRead *AF = new ArchFileRead (this, FileLine, LineNo);
-
-    InfoBlockIdsMtx.lock();
-    bool DoHLink = InfoBlockIds.find (AF->ListEntry.BlkNum) != InfoBlockIds.end();
-    string LTarget = DoHLink ? InfoBlockIds[AF->ListEntry.BlkNum]
-                             : AF->LinkTarget;
-    InfoBlockIdsMtx.unlock();
-
-    // create extracted file
-    LiveFile *LF = new LiveFile (AF->Name, AF->Stats, LTarget,
-                                 AF->Chunks, ChunkBlocks,
-                                 ModTimes, &ModTimesMtx,
-                                 DoHLink);
-
-    if (!DoHLink) {
-        InfoBlockIdsMtx.lock();
-        InfoBlockIds[AF->ListEntry.BlkNum] = LF->Name;
-        InfoBlockIdsMtx.unlock();
-    }
-
-    delete LF;
-    delete AF;
-}
-
-void ArchiveRead::DoExtract () {
-    // open the file list
-    auto ListFile = OpenReadStream (ListPath);
-
-    // parse and extract all the entries in the list
-    u64 LineNo = 0;
-    string FileLine;
-    while (getline (ListFile, FileLine)) {
-        LineNo ++;
-
-        if (O.NumThreads) {
-            JobCtrl *Job = ThreadPool.AllocThread();
-            Job->JobType = JobCtrl::ExtractFile;
-            Job->ExtractFileInfo.Arch     = this;
-            Job->ExtractFileInfo.FileLine = FileLine;
-            Job->ExtractFileInfo.LineNo   = LineNo;
-            Job->Go();
-        } else {
-            DoExtractJob (FileLine, LineNo);
-        }
-    }
-
-    // wait for all jobs to finish
-    ThreadPool.WaitIdle();
-
-    // handle defered modification times
-    for (auto& [Name, Time]: ModTimes)
-        SetModTime (Name, Time);
-
-    ListFile.close();
-}
-
-//////////////////////////////////////////////////////////////////////
 ArchFile::ArchFile (Archive *arch) {
     DBGCTOR;
     Arch = arch;
@@ -266,11 +265,11 @@ ArchFile::~ArchFile () {
 }
 
 //////////////////////////////////////////////////////////////////////
-ArchFileRead::ArchFileRead (ArchiveRead *arch, const string &ListLine, u64 LineNo) : ArchFile (arch) {
+ArchFileRead::ArchFileRead (ArchiveRead *arch, const FileListEntry &listentry) : ArchFile (arch) {
     DBGCTOR;
     Arch = arch;
 
-    ListEntry = Arch->ParseListLine (ListLine, LineNo);
+    ListEntry = listentry;
 
     // extract information from the FInfo block
     string FInfoPacked;
@@ -363,7 +362,10 @@ DBG ("CreateJob Name=%s\n", Name.c_str());
     ArchiveReference *RefArch = ((ArchiveCreate*)Arch)->ArchRef;
     if (RefArch && RefArch->FileMap.count (Name)) {
         auto FileEntry = RefArch->FileMap[Name];
-DBG ("CreateJob %s found in ref archive\n", Name.c_str());
+DBG ("CreateJob %s found in ref archive\n", FileEntry.Name.c_str());
+
+        // compare the live file to the reference archive
+        ArchFileRead *RF = new ArchFileRead ((ArchiveRead *)Arch, FileEntry);
     }
 
     // get string version of stats for FInfo

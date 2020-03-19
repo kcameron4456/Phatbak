@@ -32,8 +32,7 @@ void BackGroundWorker (JobCtrl *Job) {
                     break;
                 case JobCtrl::ExtractFile :
                     Job->ExtractFileInfo.Arch->DoExtractJob(
-                          Job->ExtractFileInfo.FileLine
-                         ,Job->ExtractFileInfo.LineNo
+                          Job->ExtractFileInfo.ListEntry
                         );
                     break;
                 case JobCtrl::CompressChunk :
