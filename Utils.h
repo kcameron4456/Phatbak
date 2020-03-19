@@ -8,6 +8,7 @@
 #include <string>
 #include <fstream>
 #include <stdio.h>
+#include <sys/stat.h>
 using namespace std;
 
 namespace Utils {
@@ -53,7 +54,7 @@ namespace Utils {
     void CreateDir (const string Dir, bool CreateSubs = false);
 
     // set modification time on a file
-    void SetModTime (const string &Name, uint64_t Time);
+    void SetModTime (const string &Name, timespec Time);
 
     // hard link one file to another
     void MakeHardLink (const string &ExistingFile, const string &NewName);
@@ -64,11 +65,23 @@ namespace Utils {
     // return all the subdirectories and files within a directory
     void SlurpDir (const string &Dir, vecstr &SubDirs, vecstr &SubFiles);
 
-    // touch a file
+    // touch a file (create or update modification time)
     void Touch (const string &Name);
 
     // link a file to a new name
     void Link (const string &Name, const string &Target);
+
+    // extract standard stat type from archive file stats header
+    struct stat ParseStatsHeader (const string &Hdr);
+
+    // create archive file stats header from standard stat type
+    string CreateStatsHeader (const struct stat &Stats);
+
+    // convert u64 ns time to stats time structure
+    timespec NsToTimeSpec (u64 ns);
+
+    // convert stats time_t to ns time
+    u64 TimeSpec_ToNs (const timespec &T);
 }
 
 #endif // UTILS_H

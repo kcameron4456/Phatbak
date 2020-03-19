@@ -24,9 +24,9 @@ class LiveFile {
     LiveFile  (const string &name);
 
     // for extract, etc
-    LiveFile  (const string &name        , const string &stats   , const string &ltarg
+    LiveFile  (const string &name        , const struct stat &stats   , const string &ltarg
               ,vector <ChunkInfo> &Chunks, BlockList *ChunkBlocks
-              ,map <string, uint64_t> &ModTimes, mutex *ModTimesMtx
+              ,map <string, u64> &ModTimes, mutex *ModTimesMtx
               ,bool DoHLink
               );
 
@@ -39,18 +39,13 @@ class LiveFile {
     inline bool IsFifo   () const {return S_ISFIFO (Stats.st_mode);}
     inline bool IsSocket () const {return S_ISSOCK (Stats.st_mode);}
 
-    inline int64_t mTime()  const {return (int64_t) Stats.st_mtime * 1000000000 +
-                                          (int64_t) Stats.st_mtim.tv_nsec;}
     inline uint16_t Dev  () const {return Stats.st_dev;}
     inline uint16_t Mode () const {return Stats.st_mode;}
-    inline uint64_t Size () const {return Stats.st_size;}
-    inline uint64_t INode() const {return (IsDir() || IsSLink() || Stats.st_nlink < 2) ? 0 : Stats.st_ino;} // only for non-dir hlink files
+    inline u64      Size () const {return Stats.st_size;}
+    inline u64      INode() const {return (IsDir() || IsSLink() || Stats.st_nlink < 2) ? 0 : Stats.st_ino;} // only for non-dir hlink files
     inline void     Trunc()       {Stats.st_size = 0;}
 
     vecstr GetSubs ();
-
-    string MakeInfoHeader                    () const ;
-    void   ImportInfoHeader (const string &Hdr);
 
     void     OpenRead  ();
     void     OpenWrite ();

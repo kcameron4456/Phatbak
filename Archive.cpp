@@ -152,7 +152,7 @@ void ArchiveRead::DoExtract () {
 
     // handle defered modification times
     for (auto& [Name, Time]: ModTimes)
-        SetModTime (Name, Time);
+        SetModTime (Name, NsToTimeSpec(Time));
 
     ListFile.close();
 }
@@ -297,7 +297,7 @@ ArchFileRead::ArchFileRead (ArchiveRead *arch, const FileListEntry &listentry) :
         Line.erase (0,2);
         switch (RecType) {
             case 'H' :
-                Stats = Line; break;
+                Stats = ParseStatsHeader (Line); break;
 
             case 'L' :
                 LinkTarget = Line; break;
@@ -362,17 +362,14 @@ DBG ("CreateJob Name=%s\n", Name.c_str());
     ArchiveReference *RefArch = ((ArchiveCreate*)Arch)->ArchRef;
     if (RefArch && RefArch->FileMap.count (Name)) {
         auto FileEntry = RefArch->FileMap[Name];
-DBG ("CreateJob %s found in ref archive\n", FileEntry.Name.c_str());
 
         // compare the live file to the reference archive
         ArchFileRead *RF = new ArchFileRead ((ArchiveRead *)Arch, FileEntry);
+DBG ("CreateJob %s stats = %s\n", Name.c_str(), CreateStatsHeader(RF->Stats).c_str());
     }
 
-    // get string version of stats for FInfo
-    Stats = LF->MakeInfoHeader ();
-
     // Create Finfo file contents
-    string FInfo = "H-" + Stats + "\n";
+    string FInfo = "H-" + CreateStatsHeader (LF->Stats) + "\n";
 
     // For files, create chunks and FInfo entries
     if (LF->IsFile()) {

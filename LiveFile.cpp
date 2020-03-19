@@ -68,17 +68,16 @@ void ExtractChunkJob (ChunkInfo *Chunk, BlockList *ChunkBlocks, i64 BlockIdx, FI
 }
 
 // for extract, etc
-LiveFile::LiveFile (const string &name              , const string &stats   , const string &ltarg
-                   ,vector <ChunkInfo> &Chunks      , BlockList *ChunkBlocks
-                   ,map <string, uint64_t> &ModTimes, mutex *ModTimesMtx
+LiveFile::LiveFile (const string &name         , const struct stat &stats, const string &ltarg
+                   ,vector <ChunkInfo> &Chunks , BlockList *ChunkBlocks
+                   ,map <string, u64> &ModTimes, mutex *ModTimesMtx
                    ,bool DoHLink
                    ) {
     DBGCTOR;
-    Name = name;
-    F = NULL;
-
-    ImportInfoHeader (stats);
+    Name       = name;
+    Stats      = stats;
     LinkTarget = ltarg;
+    F          = NULL;
 
     // if extracting, create the file now
     if (O.Operation == Opts::DoExtract) {
@@ -165,10 +164,10 @@ LiveFile::LiveFile (const string &name              , const string &stats   , co
         if (IsDir()) {
             // dir modification time needs to be set later
             ModTimesMtx->lock();
-            ModTimes [Name] = mTime();
+            ModTimes [Name] = TimeSpec_ToNs (Stats.st_mtim);
             ModTimesMtx->unlock();
         } else {
-            SetModTime (Name, mTime());
+            SetModTime (Name, Stats.st_mtim);
         }
     }
 }
@@ -185,37 +184,6 @@ vecstr LiveFile::GetSubs () {
     for (const auto& entry : filesystem::directory_iterator(Name))
         Subs.push_back (Name + "/" + entry.path().filename().string());
     return Subs;
-}
-
-string LiveFile::MakeInfoHeader () const {
-    stringstream res;
-    res << "mode:"  << hex << Stats.st_mode << " ";
-    res << "uid:"   << hex << Stats.st_uid  << " ";
-    res << "gid:"   << hex << Stats.st_gid  << " ";
-    res << "size:"  <<        Stats.st_size << " "; // keep size in decimal to make it easier to read and debug
-    res << "mtime:" << hex << mTime()       << " ";
-
-    return res.str();
-}
-
-void LiveFile::ImportInfoHeader (const string &Hdr) {
-    vecstr Fields = SplitStr (Hdr, " ");
-    for (auto Field : Fields) {
-        vecstr Two = SplitStr (Field, ":");
-        if (Two.size() != 2)
-            THROW_PBEXCEPTION_FMT ("Illegal header field : %s", Field.c_str());
-        string &Name = Two[0];
-        string &Val  = Two[1];
-             if (Name == "mode" ) Stats.st_mode = strtoull (Val.c_str(), NULL, 16);
-        else if (Name == "uid"  ) Stats.st_uid  = strtoull (Val.c_str(), NULL, 16);
-        else if (Name == "gid"  ) Stats.st_gid  = strtoull (Val.c_str(), NULL, 16);
-        else if (Name == "size" ) Stats.st_size = strtoull (Val.c_str(), NULL, 10);
-        else if (Name == "mtime") {
-            uint64_t ns           = strtoull (Val.c_str(), NULL, 16);
-            Stats.st_mtime        = ns / 1000000000Ull;
-            Stats.st_mtim.tv_nsec = ns % 1000000000Ull;
-        }
-    }
 }
 
 void SplitFileName (const string &RawName, string &Path, string &Name) {

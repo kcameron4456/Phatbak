@@ -161,13 +161,9 @@ void Utils::CreateDir (const string Dir, bool CreateSubs) {
     THROW_PBEXCEPTION_IO ("Utils::CreateDir Failed to create %s: %s", Dir.c_str(), ec.message().c_str());
 }
 
-void Utils::SetModTime (const string &Name, uint64_t Time) {
+void Utils::SetModTime (const string &Name, timespec Time) {
     // set modification time
-    struct timespec TV[2];
-    uint64_t Ratio = 1000000000;
-    TV[0].tv_sec  = Time / Ratio;
-    TV[0].tv_nsec = Time % Ratio;
-    TV[1] = TV[0];
+    struct timespec TV[2] = {Time, Time};
     if (utimensat (AT_FDCWD, Name.c_str(), TV, AT_SYMLINK_NOFOLLOW))
         THROW_PBEXCEPTION_IO ("Can't set mod time of %s", Name.c_str()); 
 }
@@ -218,4 +214,53 @@ void Utils::Link (const string &Name, const string &Target) {
     fs::create_hard_link (Target, Name, ec);
     if (ec)
         THROW_PBEXCEPTION_IO ("Error creating link:%s to target:%s :%s", Name.c_str(), Target.c_str(), ec.message().c_str());
+}
+
+// extract standard stat type from archive file stats header
+struct stat Utils::ParseStatsHeader (const string &Hdr) {
+    struct stat Stats;
+    vecstr Fields = SplitStr (Hdr, " ");
+    for (auto Field : Fields) {
+        vecstr Two = SplitStr (Field, ":");
+        if (Two.size() != 2)
+            THROW_PBEXCEPTION_FMT ("Illegal header field : %s", Field.c_str());
+        string &Name = Two[0];
+        string &Val  = Two[1];
+             if (Name == "mode" ) Stats.st_mode = strtoull (Val.c_str(), NULL, 16);
+        else if (Name == "uid"  ) Stats.st_uid  = strtoull (Val.c_str(), NULL, 16);
+        else if (Name == "gid"  ) Stats.st_gid  = strtoull (Val.c_str(), NULL, 16);
+        else if (Name == "size" ) Stats.st_size = strtoull (Val.c_str(), NULL, 10);
+        else if (Name == "mtime") {
+            u64 ns           = strtoull (Val.c_str(), NULL, 16);
+            Stats.st_mtime        = ns / 1000000000Ull;
+            Stats.st_mtim.tv_nsec = ns % 1000000000Ull;
+        }
+    }
+    return Stats;
+}
+
+// create archive file stats header from standard stat type
+string Utils::CreateStatsHeader (const struct stat &Stats) {
+    stringstream res;
+    res << "mode:"  << hex << Stats.st_mode                 << " ";
+    res << "uid:"   << hex << Stats.st_uid                  << " ";
+    res << "gid:"   << hex << Stats.st_gid                  << " ";
+    res << "size:"  << dec << Stats.st_size                 << " "; // keep size in decimal to make it easier to read and debug
+    res << "mtime:" << hex << TimeSpec_ToNs (Stats.st_mtim) << " ";
+
+    return res.str();
+}
+
+// convert u64 ns time to stats time structure
+timespec Utils::NsToTimeSpec (u64 ns) {
+    timespec T;
+    static const u64 Ratio = 1000000000;
+    T.tv_sec  = ns / Ratio;
+    T.tv_nsec = ns % Ratio;
+    return T;
+}
+
+// convert stats time_t to ns time
+u64 Utils::TimeSpec_ToNs (const timespec &T) {
+    return (u64) T.tv_sec * 1000000000 + (u64) T.tv_nsec;
 }

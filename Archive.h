@@ -99,8 +99,8 @@ class ArchFile {
     Archive           *Arch;
     string             Name;
     FileListEntry      ListEntry;
+    struct stat        Stats;
     mutex              Mtx;
-    string             Stats;
     string             LinkTarget;
     vector <ChunkInfo> Chunks;
 
