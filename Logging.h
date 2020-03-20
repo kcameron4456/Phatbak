@@ -2,12 +2,21 @@
 #define LOGGING_H
 
 #include "Opts.h"
+#include "Utils.h"
 
 #include <stdio.h>
 #include <string>
 #include <stdarg.h>
 #include <mutex>
 #include <chrono>
+#include <sstream>
+#include <iomanip>
+
+#define BOOST_STACKTRACE_USE_ADDR2LINE
+#define BOOST_STACKTRACE_DYN_LINK
+#define BOOST_STACKTRACE_LINK
+#define BOOST_ALL_DYN_LINK
+#include <boost/stacktrace.hpp>
 
 using namespace std;
 
@@ -48,12 +57,42 @@ class PB_Exception {
 
         char cmsg [4000];
         vsnprintf (cmsg, 999, NewFmt.c_str(), args);
-        Message = cmsg;
+        Message  = Backtrace();
+        Message += cmsg;
     }
     void MakeMessage (int SrcLine, const char *SrcFile, const string &fmt, ...) {
         PB_VARGS(fmt);
         MakeMessage (SrcLine, SrcFile, fmt, args);
         va_end(args);
+    }
+    string Backtrace () {
+        stringstream res;
+        #if (0)
+            // this needs work
+            namespace bs = boost::stacktrace;
+            bs::stacktrace st;
+            int Cnt = 0;
+            for (auto frame: st)
+                res
+                    << setw(2) << Cnt++ << "# " << setw(0)
+                    << frame.name()
+                    << ":" << frame.source_file()
+                    << ":" << frame.source_line()
+                    << endl;
+        #else
+            res << boost::stacktrace::stacktrace();
+        #endif
+
+        // get rid of linese with PB_Exception
+        string Traces = res.str();
+        vecstr Lines = Utils::SplitStr (Traces, "\n");
+        vecstr ResLines;
+        for (auto &Line : Lines)
+            if (Line.find ("PB_Exception") == string::npos)
+                ResLines.push_back(Line);
+        string Result = Utils::JoinStrs (ResLines, "\n");
+
+        return Result;
     }
     virtual void Print () {
         PrintMessage ();

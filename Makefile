@@ -6,7 +6,8 @@ DEFTARGS = PhatBak
 #VERSION_MINOR := $(perl {my @parts = split /\./, $VERSION; $parts[1];})
 #VERSION_ARG = -DVERSION_MAJOR=$(VERSION_MAJOR) -DVERSION_MINOR=$(VERSION_MINOR)
 
-MYCFLAGS = -Wall -Werror -Wno-error=parentheses
+MYCFLAGS  = -Wall -Werror -Wno-error=parentheses
+#MYCFLAGS += -rdynamic
 DBGMSG = -DDBGMSG
 ifdef DBG
     # DBG=1 creates debuggable code else fastest
@@ -18,6 +19,7 @@ endif
 CXXFLAGS =
 CPPFLAGS += -std=c++17 $(MYCFLAGS)
 LDFLAGS  += -lpthread -lstdc++fs -lzstd -lmhash
+LDFLAGS  += -rdynamic -lboost_stacktrace_addr2line
 
 .PHONY: default
 default:  $(DEFTARGS)
