@@ -226,15 +226,11 @@ struct stat Utils::ParseStatsHeader (const string &Hdr) {
             THROW_PBEXCEPTION_FMT ("Illegal header field : %s", Field.c_str());
         string &Name = Two[0];
         string &Val  = Two[1];
-             if (Name == "mode" ) Stats.st_mode = strtoull (Val.c_str(), NULL, 16);
-        else if (Name == "uid"  ) Stats.st_uid  = strtoull (Val.c_str(), NULL, 16);
-        else if (Name == "gid"  ) Stats.st_gid  = strtoull (Val.c_str(), NULL, 16);
-        else if (Name == "size" ) Stats.st_size = strtoull (Val.c_str(), NULL, 10);
-        else if (Name == "mtime") {
-            u64 ns           = strtoull (Val.c_str(), NULL, 16);
-            Stats.st_mtime        = ns / 1000000000Ull;
-            Stats.st_mtim.tv_nsec = ns % 1000000000Ull;
-        }
+             if (Name == "mode" ) Stats.st_mode =               strtoull (Val.c_str(), NULL, 16);
+        else if (Name == "uid"  ) Stats.st_uid  =               strtoull (Val.c_str(), NULL, 16);
+        else if (Name == "gid"  ) Stats.st_gid  =               strtoull (Val.c_str(), NULL, 16);
+        else if (Name == "size" ) Stats.st_size =               strtoull (Val.c_str(), NULL, 10);
+        else if (Name == "mtime") Stats.st_mtim = NsToTimeSpec (strtoull (Val.c_str(), NULL, 16);
     }
     return Stats;
 }
@@ -242,16 +238,16 @@ struct stat Utils::ParseStatsHeader (const string &Hdr) {
 // create archive file stats header from standard stat type
 string Utils::CreateStatsHeader (const struct stat &Stats) {
     stringstream res;
-    res << "mode:"  << hex << Stats.st_mode                 << " ";
-    res << "uid:"   << hex << Stats.st_uid                  << " ";
-    res << "gid:"   << hex << Stats.st_gid                  << " ";
-    res << "size:"  << dec << Stats.st_size                 << " "; // keep size in decimal to make it easier to read and debug
+    res << "mode:"  << hex <<                Stats.st_mode  << " ";
+    res << "uid:"   << hex <<                Stats.st_uid   << " ";
+    res << "gid:"   << hex <<                Stats.st_gid   << " ";
+    res << "size:"  << dec <<                Stats.st_size  << " "; // keep size in decimal to make it easier to read and debug
     res << "mtime:" << hex << TimeSpec_ToNs (Stats.st_mtim) << " ";
 
     return res.str();
 }
 
-// convert u64 ns time to stats time structure
+// convert u64 nanosecond time to stats time structure
 timespec Utils::NsToTimeSpec (u64 ns) {
     timespec T;
     static const u64 Ratio = 1000000000;

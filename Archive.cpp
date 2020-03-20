@@ -398,31 +398,10 @@ DBG ("Unlinking Chunk %ld\n", Chunk.Idx);
         RF = NULL;
     }
 
-    // see if we can just clone the file
-    // must be same type and other mode bits
-    // for regular files, mtime and size must match
-    // for symbolic links, target must match
-//    if (RF) {
-//DBG ("CreateJob %s stats = %s\n", Name.c_str(), CreateStatsHeader(RF->Stats).c_str());
-//        if (LF->Stats.st_mode == RF->Stats.st_mode
-//         && !LF->IsFile() || (                   LF->Stats.st_size == RF->Stats.st_size
-//                              && TimeSpecsEqual (LF->Stats.st_mtim  , RF->Stats.st_mtim)
-//                             )
-//         && !LF->IsSLink()  || (LF->LinkTarget == RF->LinkTarget)
-//           ) {
-//DBG ("CreateJob %s matches reference\n", Name.c_str());
-//            // file hasn't changed since reference archive entry was created
-//            // just link to it in the file list
-//            ListEntry = FileEntry;
-//        }
-//    }
-
-if (RF) delete RF;  // not sure where this goes
-
     // Create Finfo file contents
     string FInfo = "H-" + CreateStatsHeader (LF->Stats) + "\n";
 
-    // For files, create chunks and FInfo entries
+    // For files, create chunks
     if (LF->IsFile()) {
         vector <HashAndCompressReturn *> Returns;
 
@@ -487,6 +466,9 @@ if (RF) delete RF;  // not sure where this goes
 
     // flag completion
     Mtx.unlock();
+
+    if (RF)
+        delete RF;
 
     // we're done with the Live File
     delete LF;
