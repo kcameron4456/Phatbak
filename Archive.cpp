@@ -373,7 +373,7 @@ void ArchFileCreate::HashAndCompressJob (const string &ChunkData
 
 void ArchFileCreate::CreateJob (bool Keep) {
     // get matching file info from reference archive
-DBG ("CreateJob Name=%s\n", Name.c_str());
+//DBG ("CreateJob Name=%s\n", Name.c_str());
     ArchiveReference *RefArch = ((ArchiveCreate*)Arch)->ArchRef;
     ArchFileRead          *RF = NULL;
     FileListEntry          FileEntry;
@@ -382,8 +382,8 @@ DBG ("CreateJob Name=%s\n", Name.c_str());
 
         // grab info from the reference archive
         RF = new ArchFileRead ((ArchiveRead *)Arch, FileEntry);
-DBG ("CreateJob Name Match\n");
-DBG ("LF size = %ld  RF size = %ld\n", LF->Stats.st_size, RF->Stats.st_size);
+//DBG ("CreateJob Name Match\n");
+//DBG ("LF size = %ld  RF size = %ld\n", LF->Stats.st_size, RF->Stats.st_size);
     }
 
     // if the reference is too different,
@@ -440,6 +440,7 @@ DBG ("LF size = %ld  RF size = %ld\n", LF->Stats.st_size, RF->Stats.st_size);
                 // get help
                 Thr->JobType                        = JobCtrl::CompressChunk;
                 Thr->CompressChunkInfo.AF           = this;
+                Thr->CompressChunkInfo.ChunkData    = ChunkData;
                 Thr->CompressChunkInfo.RefChunkInfo = RefChunkInfo;
                 Thr->CompressChunkInfo.RefBlockList = RefBlockList;
                 Thr->CompressChunkInfo.HACR         = Return;
