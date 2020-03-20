@@ -267,9 +267,9 @@ ArchFile::~ArchFile () {
 //////////////////////////////////////////////////////////////////////
 ArchFileRead::ArchFileRead (ArchiveRead *arch, const FileListEntry &listentry) : ArchFile (arch) {
     DBGCTOR;
-    Arch = arch;
-
+    Arch      = arch;
     ListEntry = listentry;
+    Name      = ListEntry.Name;
 
     // extract information from the FInfo block
     string FInfoPacked;

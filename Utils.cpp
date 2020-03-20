@@ -156,9 +156,8 @@ void Utils::CreateDir (const string Dir, bool CreateSubs) {
         if (fs::create_directory (Dir, ec))
             return;
     }
-    if (!ec)
-        return;
-    THROW_PBEXCEPTION_IO ("Utils::CreateDir Failed to create %s: %s", Dir.c_str(), ec.message().c_str());
+    if (ec)
+        THROW_PBEXCEPTION_IO ("Utils::CreateDir Failed to create %s: %s", Dir.c_str(), ec.message().c_str());
 }
 
 void Utils::SetModTime (const string &Name, timespec Time) {
