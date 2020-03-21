@@ -56,8 +56,7 @@ void Create::DoCreate (const string &Name) {
     bool KeepAF = false;
     if (uint32_t INode = LF->INode()) {
         uint32_t Dev = LF->Dev();
-        if (Inodes      .find(  Dev) != Inodes      .end() &&
-            Inodes [Dev].find(INode) != Inodes [Dev].end()) {
+        if (Inodes.count (Dev) && Inodes [Dev].count(INode)) {
             // this dev/inode combo has been seen before
 
             // create the link

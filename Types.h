@@ -23,19 +23,52 @@ typedef enum {
 
 #include "Hash.h"
 #include "Comp.h"
+#include "BusyLock.h"
+
+#include <sys/stat.h>
+
+// fields of "List" file
+class FileListEntry {
+    public:
+    string      Name      ;
+    struct stat Stats     ;
+    char        CompFlag  ;
+    string      LinkTarget;
+    i64         FInfoIdx  ;
+    u64         LineNo    ;
+
+     FileListEntry() {}
+    ~FileListEntry() {}
+};
 
 class ChunkInfo {
     public:
     eCompType    CompType;
     i64          Idx;
     string       Hash;
-    eHashType    HashType;
-    ChunkInfo (eCompType comptype, i64 idx, const string& hash, eHashType hashtype) {
+    ChunkInfo (eCompType comptype, i64 idx, const string& hash) {
         CompType = comptype;
         Idx      = idx;
         Hash     = hash;
-        HashType = hashtype;
     }
+};
+
+// needed to synchonize file extract with hard link creation
+class HLinkSyncRec {
+    public:
+    string   Name;
+    BusyLock Lock;
+    HLinkSyncRec () : Lock (true) {}
+};
+
+// holds information for deferred setting of permissions and mod time on extracted dirs
+class DirAttribRec {
+    public:
+    string   Name;
+    u32      Uid;
+    u32      Gid;
+    mode_t   Mode;
+    u64      MTime;
 };
 
 #endif // TYPES_H

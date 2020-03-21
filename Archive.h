@@ -14,6 +14,9 @@
 #include <fstream>
 using namespace std;
 
+// this should be something that's very unlikely to show up in a file name or soft link target
+static const char* ListRecSep = " \\\'\'\\ ";  /* \''\ */
+
 // returns info from thread to archfilecreate
 class HashAndCompressReturn {
     public:
@@ -24,17 +27,6 @@ class HashAndCompressReturn {
     string       HashHex;
 
     HashAndCompressReturn () : BL (true) {}
-};
-
-// feilds of "List" file
-class FileListEntry {
-    public:
-    string    Name;
-    u64       BlkNum;
-    eCompType CompType;
-    string    Hash;
-     FileListEntry() {}
-    ~FileListEntry() {}
 };
 
 class Archive {
@@ -61,10 +53,10 @@ class Archive {
 };
 
 class ArchiveRead : public Archive {
-    map <u64, string> InfoBlockIds;
-    mutex             InfoBlockIdsMtx;
-    map <string, u64> ModTimes;
-    mutex             ModTimesMtx;
+    map <u64, HLinkSyncRec*> HLinkSyncs;
+    mutex                    HLinkSyncsMtx;
+    vector <DirAttribRec>    DirAttribs;
+    mutex                    DirAttribsMtx;
 
     void ParseOptions();
 
@@ -73,8 +65,8 @@ class ArchiveRead : public Archive {
      ArchiveRead (RepoInfo *repo, const string &name);
     ~ArchiveRead ();
 
-    void          DoExtract      ();
-    void          DoExtractJob   (const FileListEntry &ListEntry);
+    void DoExtract    ();
+    void DoExtractJob (const string &ListLine, u64 LineNo);
 };
 
 class ArchiveReference : public ArchiveRead {
@@ -88,13 +80,13 @@ class ArchiveReference : public ArchiveRead {
 
 class ArchiveCreate : public Archive {
     public:
-    ArchiveReference *ArchRef;
+    ArchiveReference     *ArchRef;
 
      ArchiveCreate (RepoInfo *repo, const string &name, ArchiveReference *ref);
     ~ArchiveCreate ();
 
-    void Init         (RepoInfo *repo, const string &name);
-    void PushFileList (const FileListEntry &ListEntry);
+    void Init          (RepoInfo *repo, const string &name);
+    void PushListEntry (const FileListEntry &ListEntry);
 };
 
 class ArchFile {
@@ -102,7 +94,6 @@ class ArchFile {
     Archive           *Arch;
     string             Name;
     FileListEntry      ListEntry;
-    struct stat        Stats;
     mutex              Mtx;
     string             LinkTarget;
     vector <ChunkInfo> Chunks;
@@ -131,7 +122,7 @@ class ArchFileCreate : public ArchFile {
     void CreateJob  (bool Keep);            // add file to archive (runs within thread)
     void CreateLink (ArchFileCreate *Prev); // link to previously archived file
     void HashAndCompressJob (const string &ChunkData
-                            ,ChunkInfo *RefChunkInfo, BlockList *RefBlockList
+                            ,const ChunkInfo *RefChunkInfo, BlockList *RefBlockList
                             ,HashAndCompressReturn *HACR);
 };
 

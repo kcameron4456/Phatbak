@@ -6,6 +6,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <filesystem>
+#include <sys/socket.h>
+#include <sys/un.h>
 namespace fs = std::filesystem;
 
 vecstr Utils::SplitStr (string Src, const string &Pat) {
@@ -160,13 +162,6 @@ void Utils::CreateDir (const string Dir, bool CreateSubs) {
         THROW_PBEXCEPTION_IO ("Utils::CreateDir Failed to create %s: %s", Dir.c_str(), ec.message().c_str());
 }
 
-void Utils::SetModTime (const string &Name, timespec Time) {
-    // set modification time
-    struct timespec TV[2] = {Time, Time};
-    if (utimensat (AT_FDCWD, Name.c_str(), TV, AT_SYMLINK_NOFOLLOW))
-        THROW_PBEXCEPTION_IO ("Can't set mod time of %s", Name.c_str()); 
-}
-
 void Utils::MakeHardLink (const string &ExistingFile, const string &NewName) {
     if (link (ExistingFile.c_str(), NewName.c_str()) != 0)
         THROW_PBEXCEPTION_IO ("Can't create hard link (%s) to target (%s)", NewName.c_str(), ExistingFile.c_str());
@@ -263,4 +258,42 @@ u64 Utils::TimeSpec_ToNs (const timespec &T) {
 // return true if two timespecs are equal
 bool Utils::TimeSpecsEqual (const timespec &T1, const timespec &T2) {
     return T1.tv_sec == T2.tv_sec && T1.tv_nsec == T2.tv_nsec;
+}
+
+// create a socket
+void Utils::CreateSocket (const string &Name) {
+    int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sock < 0)
+        THROW_PBEXCEPTION_IO ("Can't create socket:", Name.c_str());
+
+    struct sockaddr_un server;
+    server.sun_family = AF_UNIX;
+    strncpy(server.sun_path, Name.c_str(), sizeof(server.sun_path)-1);
+    if (bind(sock, (struct sockaddr *) &server, sizeof(struct sockaddr_un))) {
+        THROW_PBEXCEPTION_IO ("Can't bind socket: %s", Name.c_str());
+    }
+    close (sock);
+}
+
+void Utils::SetMode (const string &Name, mode_t Mode) {
+    if (chmod (Name.c_str(), Mode))
+        THROW_PBEXCEPTION_IO ("Can't set dir/file directory (%s) mode to %o", Name.c_str(), Mode);
+}
+
+void Utils::SetOwn (const string &Name, u32 Uid, u32 Gid, bool IsSLink) {
+    int res;
+    if (IsSLink)
+        res = lchown (Name.c_str(), Uid, Gid);
+    else
+        res =  chown (Name.c_str(), Uid, Gid);
+    if (res)
+        THROW_PBEXCEPTION_IO ("Can't set dir/file (%s) owner/group to (%d/%d)",
+                              Name.c_str(), Uid, Gid);
+}
+
+void Utils::SetModTime (const string &Name, timespec Time) {
+    // set modification time
+    struct timespec TV[2] = {Time, Time};
+    if (utimensat (AT_FDCWD, Name.c_str(), TV, AT_SYMLINK_NOFOLLOW))
+        THROW_PBEXCEPTION_IO ("Can't set mod time of %s", Name.c_str()); 
 }

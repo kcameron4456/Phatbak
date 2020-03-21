@@ -179,7 +179,7 @@ i64 BlockList::Search (i64 Idx, i64 Start, i64 End) {
     return Search (Idx, Mid+1, End);
 }
 
-i64 BlockList::CountAllocated () {
+i64 BlockList::CountAllocated () const {
     i64 Total = 0;
     for (unsigned i = 0; i < Ranges.size(); i++) {
         auto &Range    = Ranges [i];
@@ -193,7 +193,7 @@ i64 BlockList::CountAllocated () {
 }
 
 // convert a block number to a list of directory components
-vecstr BlockList::GetSubDirs (i64 Idx) {
+vecstr BlockList::GetSubDirs (i64 Idx) const {
     vecstr SubDirs;
     i64 TmpIdx = Idx / O.BlockNumModulus;
     while (TmpIdx) {
@@ -208,18 +208,18 @@ vecstr BlockList::GetSubDirs (i64 Idx) {
 }
 
 // convert a block number to a directory path
-string BlockList::Idx2DirString (i64 Idx) {
+string BlockList::Idx2DirString (i64 Idx) const {
     vecstr Dirs = GetSubDirs (Idx);
     Dirs.insert (Dirs.begin(), 1, TopDir);
     return Utils::JoinStrs (Dirs, "/");
 }
 
 // convert a block number to a path relative to a top dir
-string BlockList::Idx2FileName (i64 Idx) {
+string BlockList::Idx2FileName (i64 Idx) const {
     return Idx2DirString (Idx) + "/" + to_string (Idx);
 }
 
-void BlockList::SlurpBlock (i64 Idx, string &BufStr) {
+void BlockList::SlurpBlock (i64 Idx, string &BufStr) const {
     FILE *F = Utils::OpenReadBin (Idx2FileName (Idx));
 
     unsigned TotalSize = 0;
@@ -241,7 +241,7 @@ void BlockList::SpitBlock (i64 Idx, const string &BufStr) {
     string SubDirName = Idx2DirString(Idx);
     Utils::CreateDir (SubDirName, true);
 
-    FILE *F = Utils::OpenWriteBin (Idx2FileName (Idx));
+    FILE *F = Utils::OpenWriteBin (SubDirName + "/" + to_string (Idx));
     Utils::WriteBinary (F, BufStr);
     fclose (F);
 }

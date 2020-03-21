@@ -56,7 +56,7 @@ class PB_Exception {
         string NewFmt = (string)SrcFile + ":" + LBuf + ": " + MsgType + fmt;
 
         char cmsg [4000];
-        vsnprintf (cmsg, 999, NewFmt.c_str(), args);
+        vsnprintf (cmsg, 3999, NewFmt.c_str(), args);
         Message  = Backtrace();
         Message += cmsg;
     }
@@ -80,7 +80,7 @@ class PB_Exception {
                     << ":" << frame.source_line()
                     << endl;
         #else
-            res << boost::stacktrace::stacktrace();
+            res << boost::stacktrace::stacktrace() << endl;
         #endif
 
         // get rid of linese with PB_Exception
@@ -105,6 +105,7 @@ class PB_Exception {
         Message = "PB_Exception - undefined exception type";
     }
     PB_Exception (int SrcLine, const char *SrcFile, const string &fmt, ...) {
+        MsgType = "PhatBak Error: ";
         PB_VARGS(fmt);
         MakeMessage (SrcLine, SrcFile, fmt, args);
         va_end(args);
@@ -131,7 +132,7 @@ class PB_ExceptionIO : public PB_Exception {
         exit (ErrNo);
     }
     PB_ExceptionIO (int SrcLine, const char *SrcFile, const string &fmt, ...) {
-        MsgType = "IO Error: ";
+        MsgType = "PhatBak IO Error: ";
         ErrNo = errno;
         PB_VARGS(fmt);
         MakeMessage (SrcLine, SrcFile, fmt, args);

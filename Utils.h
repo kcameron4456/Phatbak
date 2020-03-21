@@ -53,9 +53,6 @@ namespace Utils {
     // create a directory - optionally create needed subdirs
     void CreateDir (const string Dir, bool CreateSubs = false);
 
-    // set modification time on a file
-    void SetModTime (const string &Name, timespec Time);
-
     // hard link one file to another
     void MakeHardLink (const string &ExistingFile, const string &NewName);
 
@@ -85,6 +82,18 @@ namespace Utils {
 
     // return true if two timespecs are equal
     bool TimeSpecsEqual (const timespec &T1, const timespec &T2);
+
+    // create a unix domain socket
+    void CreateSocket (const string &Name);
+
+    // set mode bits (really just permissions) of a file
+    void SetMode (const string &Name, mode_t Mode);
+
+    // set owner and group of a file
+    void SetOwn  (const string &Name, u32 Uid, u32 Gid, bool IsSLink = false);
+
+    // set modification time on a file
+    void SetModTime (const string &Name, timespec Time);
 }
 
 #endif // UTILS_H

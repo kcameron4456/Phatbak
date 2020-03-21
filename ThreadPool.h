@@ -36,23 +36,24 @@ class JobCtrl {
         bool            Keep;
     } CreateFileInfo;
     struct {
-        ArchiveRead    *Arch;
-        FileListEntry   ListEntry;
+        ArchiveRead *Arch;
+        string       ListLine;
+        u64          LineNo;
     } ExtractFileInfo;
     struct {
-        ArchFileCreate        *AF;
-        string                 ChunkData;
-        ChunkInfo             *RefChunkInfo;
-        BlockList             *RefBlockList;
-        HashAndCompressReturn *HACR;
+              ArchFileCreate        *AF;
+              string                 ChunkData;
+        const ChunkInfo             *RefChunkInfo;
+              BlockList             *RefBlockList;
+              HashAndCompressReturn *HACR;
     } CompressChunkInfo;
     struct {
-        ChunkInfo   *Chunk;
-        BlockList   *ChunkBlocks;
-        i64          BlockIdx;
-        FILE        *F;
-        BusyLock    *Lock;
-        BusyLock    *PrevLock;
+        const ChunkInfo *Chunk;
+        const BlockList *ChunkBlocks;
+        i64              BlockIdx;
+        FILE            *F;
+        BusyLock        *Lock;
+        BusyLock        *PrevLock;
     } ExtractChunkInfo;
 
     JobCtrl (int idx) {

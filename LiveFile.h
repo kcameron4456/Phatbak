@@ -5,13 +5,12 @@
 #include "BlockList.h"
 #include "BusyLock.h"
 
-#include <sys/stat.h>
 #include <string>
 #include <vector>
 #include <map>
 using namespace std;
 
-void ExtractChunkJob (ChunkInfo *Chunk, BlockList *ChunkBlocks, i64 BlockIdx, FILE *F, BusyLock *Lock, BusyLock *PrevLock);
+void ExtractChunkJob (const ChunkInfo *Chunk, const BlockList *ChunkBlocks, i64 BlockIdx, FILE *F, BusyLock *Lock, BusyLock *PrevLock);
 
 class LiveFile {
     public:
@@ -24,9 +23,9 @@ class LiveFile {
     LiveFile  (const string &name);
 
     // for extract, etc
-    LiveFile  (const string &name        , const struct stat &stats   , const string &ltarg
-              ,vector <ChunkInfo> &Chunks, BlockList *ChunkBlocks
-              ,map <string, u64> &ModTimes, mutex *ModTimesMtx
+    LiveFile  (const FileListEntry &ListEntry
+              ,const vector <ChunkInfo> &Chunks , const BlockList *ChunkBlocks
+              ,vector <DirAttribRec> &DirAttribs, mutex *DirAttribsMtx
               ,bool DoHLink
               );
 

@@ -26,6 +26,7 @@ LiveFile::LiveFile (const string &name) {
         THROW_PBEXCEPTION_IO ("Can't stat file: %s", Name.c_str());
 
     // type-specific actions
+    LinkTarget = "";
            if (IsFile  ()) {
     } else if (IsDir   ()) {
     } else if (IsFifo  ()) {
@@ -43,7 +44,7 @@ LiveFile::LiveFile (const string &name) {
     }
 }
 
-void ExtractChunkJob (ChunkInfo *Chunk, BlockList *ChunkBlocks, i64 BlockIdx, FILE *F, BusyLock *Lock, BusyLock *PrevLock) {
+void ExtractChunkJob (const ChunkInfo *Chunk, const BlockList *ChunkBlocks, i64 BlockIdx, FILE *F, BusyLock *Lock, BusyLock *PrevLock) {
     string ChunkData;
     ChunkBlocks->SlurpBlock (BlockIdx, ChunkData);
 
@@ -55,7 +56,7 @@ void ExtractChunkJob (ChunkInfo *Chunk, BlockList *ChunkBlocks, i64 BlockIdx, FI
         SelData = &DeCompressed;
     }
 
-    string ChunkDataHash = HashStr (Chunk->HashType, *SelData);
+    string ChunkDataHash = HashStr (O.HashType, *SelData);
     if (ChunkDataHash != Chunk->Hash)
         THROW_PBEXCEPTION_FMT ("Hash mismatch on data chunk #%llu", Chunk->Idx);
 
@@ -68,15 +69,15 @@ void ExtractChunkJob (ChunkInfo *Chunk, BlockList *ChunkBlocks, i64 BlockIdx, FI
 }
 
 // for extract, etc
-LiveFile::LiveFile (const string &name         , const struct stat &stats, const string &ltarg
-                   ,vector <ChunkInfo> &Chunks , BlockList *ChunkBlocks
-                   ,map <string, u64> &ModTimes, mutex *ModTimesMtx
+LiveFile::LiveFile (const FileListEntry &ListEntry
+                   ,const vector <ChunkInfo> &Chunks , const BlockList *ChunkBlocks
+                   ,vector <DirAttribRec> &DirAttribs, mutex *DirAttribsMtx
                    ,bool DoHLink
                    ) {
     DBGCTOR;
-    Name       = name;
-    Stats      = stats;
-    LinkTarget = ltarg;
+    Name       = ListEntry.Name;
+    Stats      = ListEntry.Stats;
+    LinkTarget = ListEntry.LinkTarget;
     F          = NULL;
 
     // if extracting, create the file now
@@ -105,14 +106,14 @@ LiveFile::LiveFile (const string &name         , const struct stat &stats, const
             if (mkfifo (Name.c_str(), Stats.st_mode) < 0)
                 THROW_PBEXCEPTION_IO ("Can't create fifo: %s", Name.c_str());
         } else if (IsSocket()) {
-            // not yet - not sure what to do
+            CreateSocket (Name);
         } else if (IsFile()) {
             vector <BusyLock *> Locks;
             BusyLock *PrevLock = NULL;
 
             FILE *F = OpenWriteBin (Name);
             for (auto ChunkItr = Chunks.begin(); ChunkItr != Chunks.end(); ChunkItr++) {
-                ChunkInfo &Chunk = *ChunkItr;
+                const ChunkInfo &Chunk = *ChunkItr;
 
                 BusyLock *Lock = new BusyLock(1);
                 Locks.push_back(Lock);
@@ -148,25 +149,31 @@ LiveFile::LiveFile (const string &name         , const struct stat &stats, const
 
         // set attributes
 
-        // set directory user and group
-        int res;
-        if (IsSLink())
-            res = lchown (Name.c_str(), Stats.st_uid, Stats.st_gid);
-        else
-            res =  chown (Name.c_str(), Stats.st_uid, Stats.st_gid);
-        if (res)
-            THROW_PBEXCEPTION_IO ("Can't set dir/file (%s) owner/group to (%d/%d)", Name.c_str(), Stats.st_uid, Stats.st_gid);
-
-        // set mode
-        if (!IsSLink() && chmod (Name.c_str(), Stats.st_mode))
-            THROW_PBEXCEPTION_IO ("Can't set dir/file directory (%s) mode to %o", Name.c_str(), Stats.st_mode);
-
+        // must defer directory attributes setting until
+        // all files have been extracted
         if (IsDir()) {
             // dir modification time needs to be set later
-            ModTimesMtx->lock();
-            ModTimes [Name] = TimeSpec_ToNs (Stats.st_mtim);
-            ModTimesMtx->unlock();
+            DirAttribRec DirAttrib;
+            DirAttrib.Name  = Name;
+            DirAttrib.Uid   = Stats.st_uid;
+            DirAttrib.Gid   = Stats.st_gid;
+            DirAttrib.Mode  = Stats.st_mode;
+            DirAttrib.MTime = TimeSpec_ToNs(Stats.st_mtim);
+
+            DirAttribsMtx->lock();
+
+            DirAttribs.push_back(DirAttrib);
+
+            DirAttribsMtx->unlock();
         } else {
+            // set directory user and group
+            SetOwn (Name, Stats.st_uid, Stats.st_gid, IsSLink());
+
+            // set mode
+            if (!IsSLink())
+                SetMode (Name, Stats.st_mode);
+
+            // set time
             SetModTime (Name, Stats.st_mtim);
         }
     }

@@ -18,6 +18,9 @@ RepoInfo::RepoInfo (const string &name) {
 
     // check for previous reference archive 
     LatestArchName = "";
+    //don't allow reference archive for now
+    //TBD: get rid of this
+    #if (0)
     if (O.RefArchive == "") {
         string LatestArchLink = Name + "/LatestArchive";
         if (fs::exists (LatestArchLink + "/" PHATBAK_ARCH_ID))
@@ -29,6 +32,7 @@ RepoInfo::RepoInfo (const string &name) {
         else
             THROW_PBEXCEPTION_FMT ("Reference archive (%s) doesn't exist", O.RefArchive.c_str());
     }
+    #endif
 }
 
 void RepoInfo::Finish (const string &ArchName) {
