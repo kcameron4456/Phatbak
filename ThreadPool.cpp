@@ -55,6 +55,17 @@ void BackGroundWorker (JobCtrl *Job) {
                        ,Job->ExtractChunkInfo.PrevLock
                     );
                     break;
+                case JobCtrl::ReverseAlloc :
+                    ReverseAllocJob (
+                        Job->ReverseAllocInfo.Blocks
+                    );
+                    break;
+                case JobCtrl::CloneBlocks :
+                    CloneBlocksJob (
+                        Job->CloneBlocksInfo.TargetBlocks
+                       ,Job->CloneBlocksInfo.SourceBlocks
+                    );
+                    break;
                 default:
                     THROW_PBEXCEPTION ("Unrecognized job type: %d", Job->JobType);
             }

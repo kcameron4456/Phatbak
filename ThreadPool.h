@@ -25,10 +25,12 @@ class JobCtrl {
 
     // tells the thread what type of work to do
     enum {
-        CreateFile = 1, // create archive file
-        ExtractFile   , // extract file from archive
-        CompressChunk , // compress one data chunk and write it to the archive
-        ExtractChunk  , // extract chunk info into restored file
+        CreateFile = 1  , // create archive file
+        ExtractFile     , // extract file from archive
+        CompressChunk   , // compress one data chunk and write it to the archive
+        ExtractChunk    , // extract chunk info into restored file
+        ReverseAlloc    , // reverse allocate blocks from actual disk files
+        CloneBlocks     , // clone blocks from another archive
     } JobType;
 
     struct {
@@ -55,6 +57,13 @@ class JobCtrl {
         BusyLock        *Lock;
         BusyLock        *PrevLock;
     } ExtractChunkInfo;
+    struct {
+        BlockList *Blocks;
+    } ReverseAllocInfo;
+    struct {
+              BlockList *TargetBlocks;
+        const BlockList *SourceBlocks;
+    } CloneBlocksInfo;
 
     JobCtrl (int idx) {
         Idx = idx;

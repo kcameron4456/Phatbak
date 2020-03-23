@@ -233,8 +233,21 @@ ArchiveBase::ArchiveBase (RepoInfo *repo, const string &name) : ArchiveRead (rep
 fprintf (stderr, "ArchiveBase::ArchiveBase listed %ld files\n", (long)FileMap.size());
 
     // load the finfo and chunk blocklists based on existing files
-    FInfoBlocks->ReverseAlloc ();
-    ChunkBlocks->ReverseAlloc ();
+    // break it into two pieces to go a bit quicker
+    if (O.NumThreads) {
+        JobCtrl *Job                 = ThreadPool.AllocThread();
+        Job->JobType                 = JobCtrl::ReverseAlloc;
+        Job->ReverseAllocInfo.Blocks = ChunkBlocks;
+        Job->Go();
+    } else {
+        ReverseAllocJob (ChunkBlocks);
+    }
+    ReverseAllocJob (FInfoBlocks); // no need for another thread
+    ThreadPool.WaitIdle();
+}
+
+void ReverseAllocJob (BlockList *Blocks) {
+    Blocks->ReverseAlloc();
 }
 
 ArchiveBase::~ArchiveBase () {
@@ -269,12 +282,27 @@ ArchiveCreate::ArchiveCreate (RepoInfo *repo, const string &name, ArchiveBase *b
 
     // if using a base arch, clone the block lists
     if (ArchBase) {
-        FInfoBlocks->Clone (*ArchBase->FInfoBlocks);
-        ChunkBlocks->Clone (*ArchBase->ChunkBlocks);
+        // break it into two pieces to go a bit quicker
+        if (O.NumThreads) {
+            JobCtrl *Job                      = ThreadPool.AllocThread();
+            Job->JobType                      = JobCtrl::CloneBlocks;
+            Job->CloneBlocksInfo.TargetBlocks = ChunkBlocks;
+            Job->CloneBlocksInfo.SourceBlocks = ArchBase->ChunkBlocks;
+            Job->Go();
+        } else {
+            CloneBlocksJob (ChunkBlocks, ArchBase->ChunkBlocks);
+        }
+        CloneBlocksJob (FInfoBlocks, ArchBase->FInfoBlocks); // no need for another thread
+        ThreadPool.WaitIdle();
     }
 
     // start the file list
     ListFile = OpenWriteStream (ListPath);
+}
+
+// clone chunks from base archive
+void CloneBlocksJob (BlockList *Dst, const BlockList *Src) {
+    Dst->Clone (*Src);
 }
 
 ArchiveCreate::~ArchiveCreate () {
@@ -319,9 +347,9 @@ void ArchiveCreate::PurgeUnusedBlocksJob (const FileListEntry *ListEntry) {
     ArchFileRead RF (ArchBase, *ListEntry);
 
     // purge
-    FInfoBlocks->UnLink (ListEntry->FInfoIdx);
     for (auto &Chunk : RF.Chunks)
         ChunkBlocks->UnLink (Chunk.ChunkIdx);
+    FInfoBlocks->UnLink (ListEntry->FInfoIdx);
 }
 
 // eliminate unused but preallocated finfo and chunk blocks
@@ -334,7 +362,7 @@ void ArchiveCreate::PurgeUnusedBlocks () {
 fprintf (stderr, "ArchiveCreate::PurgeUnusedBlocks purging %ld files\n", (long)ArchBase->FileMap.size());
 
     map <i64, bool> PurgeFinfoMap; // don't try to purge twice
-    for (auto &[Name, ListEntry] : ArchBase->FileMap) {
+    for (auto [Name, ListEntry] : ArchBase->FileMap) {
         if (ListEntry.FInfoIdx < 0)
             continue;
 
@@ -382,12 +410,9 @@ ArchFileRead::ArchFileRead (ArchiveRead *arch, const FileListEntry &listentry) :
         }
 
         // parse finfo
-        //vecstr FInfoLines = SplitStr (*SelData, "\n");
-        //for (auto Line : FInfoLines) {
         stringstream ss (*SelData);
         string Line;
         while (getline (ss, Line)) {
-            ss >> Line;
             if (  Line.size() < 3
               || (Line[0] != CompFlagUnComp &&
                   Line[0] != CompFlagComp
@@ -398,9 +423,12 @@ ArchFileRead::ArchFileRead (ArchiveRead *arch, const FileListEntry &listentry) :
             char RecType = Line[0];
             Line.erase (0,2);
             vecstr Parts = SplitStr (Line, " ");
+            if (Parts.size() != 2)
+                THROW_PBEXCEPTION_FMT ("Illegal FInfo format: %s", Line.c_str());
             Chunks.emplace_back (Comp::CompFlag2CompType (RecType, O),
                                  stoull (Parts[0].c_str()),
                                  Parts[1]);
+
         }
     }
 }

@@ -49,7 +49,7 @@ class BlockList {
     void    SpitBlock       (i64 Idx, const string &BufStr);
     i64     SpitNewBlock    (         const string &BufStr);
     void    Link            (i64 Idx, const string &Target);
-    void    Clone           (BlockList &Base);
+    void    Clone           (const BlockList &Base);
     void    ReverseAlloc    ();
     void    ReverseAlloc    (const string &Dir);
     void    UnLink          (i64 Idx);

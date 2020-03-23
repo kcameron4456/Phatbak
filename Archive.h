@@ -134,4 +134,7 @@ class ArchFileCreate : public ArchFile {
                             ,HashAndCompressReturn *HACR);
 };
 
+void CloneBlocksJob  (BlockList *Dst, const BlockList *Src);
+void ReverseAllocJob (BlockList *Blocks);
+
 #endif // ARCHIVE_H

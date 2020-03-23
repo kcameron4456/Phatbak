@@ -245,7 +245,7 @@ void BlockList::Link (i64 Idx, const string &Target) {
     Utils::Link (LinkName, Target);
 }
 
-void BlockList::Clone (BlockList &Base) {
+void BlockList::Clone (const BlockList &Base) {
     for (auto &BaseRange : Base.Ranges)
         for (i64 Idx = BaseRange.min; Idx <= BaseRange.max; Idx++) {
             Link (Idx, Base.Idx2FileName(Idx));
