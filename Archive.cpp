@@ -67,13 +67,9 @@ FileListEntry Archive::ParseListLine (const string &ListLine, u64 LineNo) {
         else if (Name == "gid"  ) Res.Stats.st_gid  =               strtoull (Val.c_str(), NULL, 16);
         else if (Name == "size" ) Res.Stats.st_size =               strtoull (Val.c_str(), NULL, 10);
         else if (Name == "mtime") Res.Stats.st_mtim = NsToTimeSpec (strtoull (Val.c_str(), NULL, 16));
-        else if (Name == "U"    ) {
+        else if (Name == "U" || Name == "C") {
                                   Res.FInfoIdx      =               strtoull (Val.c_str(), NULL, 10);
-                                  Res.CompFlag      =               CompFlagUnComp;
-                                  }
-        else if (Name == "C"    ) {
-                                  Res.FInfoIdx      =               strtoull (Val.c_str(), NULL, 10);
-                                  Res.CompFlag      =               CompFlagComp;
+                                  Res.CompFlag      =               Name[0];
                                   }
         else
             THROW_PBEXCEPTION_FMT ("Illegal entry in %s:%llu : %s", ListPath.c_str(), LineNo, RHSTok.c_str());
@@ -205,6 +201,7 @@ void ArchiveRead::DoExtract () {
 
     // wait for all jobs to finish
     ThreadPool.WaitIdle();
+fprintf (stderr, "file extract complete\n");
 
     // handle deferred modification times
     for (auto& DirAttrib : DirAttribs) {
@@ -212,6 +209,7 @@ void ArchiveRead::DoExtract () {
         SetMode    (DirAttrib.Name, DirAttrib.Mode               );
         SetModTime (DirAttrib.Name, NsToTimeSpec(DirAttrib.MTime));
     }
+fprintf (stderr, "dir attribs complete\n");
 
     ListFile.close();
 }
@@ -432,7 +430,7 @@ ArchFileRead::ArchFileRead (ArchiveRead *arch, const FileListEntry &listentry) :
             vecstr Parts = SplitStr (Line, " ");
             if (Parts.size() != 2)
                 THROW_PBEXCEPTION_FMT ("Illegal FInfo format: %s", Line.c_str());
-            Chunks.emplace_back (Comp::CompFlag2CompType (RecType, O),
+            Chunks.emplace_back (RecType,
                                  stoull (Parts[0].c_str()),
                                  Parts[1]);
 

@@ -13,6 +13,10 @@ eCompType Comp::CompNameToEnum (const string &Name) {
     THROW_PBEXCEPTION_FMT ("Unrecognized Compression Algorithm: " + Name);
 }
 
+eCompType Comp::CompFlag2CompType (char Flag) {
+    return CompFlag2CompType (Flag, O);
+}
+
 eCompType Comp::CompFlag2CompType (char Flag, Opts &O) {
     switch (Flag) {
         case 'U' : return CompType_NONE;
@@ -38,6 +42,10 @@ void Comp::Compress (const string &InStr, string &OutStr) {
         default:
             THROW_PBEXCEPTION ("Illegal compression type: %d", O.CompType);
     }
+}
+
+void Comp::DeCompress (char CompFlag, const string &InStr, string &OutStr) {
+    DeCompress (CompFlag2CompType (CompFlag, O), InStr, OutStr);
 }
 
 void Comp::DeCompress (eCompType CompType, const string &InStr, string &OutStr) {

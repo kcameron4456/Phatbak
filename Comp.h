@@ -19,11 +19,13 @@ class Opts; // needed by circular header dependecies
 
 namespace Comp {
     eCompType CompFlag2CompType (char Flag, Opts &O);
+    eCompType CompFlag2CompType (char Flag);
     char      CompType2CompFlag (eCompType Type);
     eCompType CompNameToEnum    (const string &Name);
 
     void        Compress   (                    const string &InStr, string &OutStr);
     void      DeCompress   (eCompType CompType, const string &InStr, string &OutStr);
+    void      DeCompress   (char      CompFlag, const string &InStr, string &OutStr);
 
     void        Compress_ZSTD (const string &InStr, string &OutStr);
     void      DeCompress_ZSTD (const string &InStr, string &OutStr);
