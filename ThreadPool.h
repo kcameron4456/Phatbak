@@ -43,8 +43,8 @@ class JobCtrl {
     struct {
               ArchFileCreate        *AF;
               string                 ChunkData;
-        const ChunkInfo             *RefChunkInfo;
-              BlockList             *RefBlockList;
+        const ChunkInfo             *BaseChunkInfo;
+              BlockList             *BaseBlockList;
               HashAndCompressReturn *HACR;
     } CompressChunkInfo;
     struct {
@@ -82,6 +82,10 @@ class ThreadPool_t {
     vector <JobCtrl *> Avail; // set of Worker threads which are ready to perform work
     mutex              Mtx;   // mutex to control alloc/release
     condition_variable CV;    // condition variable for alloc/release
+
+    // for debug with gdb
+    static const int JobArraySize = 100;
+    JobCtrl *JobArray [JobArraySize];
 
     public:
 

@@ -43,12 +43,12 @@ class FileListEntry {
 
 class ChunkInfo {
     public:
-    eCompType    CompType;
-    i64          Idx;
+    char         CompFlag;
+    i64          ChunkIdx;
     string       Hash;
-    ChunkInfo (eCompType comptype, i64 idx, const string& hash) {
-        CompType = comptype;
-        Idx      = idx;
+    ChunkInfo (char compflag, i64 idx, const string& hash) {
+        CompFlag = compflag;
+        ChunkIdx = idx;
         Hash     = hash;
     }
 };

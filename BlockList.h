@@ -4,9 +4,11 @@
 #include "Types.h"
 #include "RepoInfo.h"
 #include "Opts.h"
+#include "BusyLock.h"
 
 #include <string>
 #include <vector>
+#include <map>
 #include <stdio.h>
 #include <mutex>
 #include <fstream>
@@ -23,16 +25,16 @@ class BlockRangeTuple {
 };
 
 class BlockList {
-    string TopDir;
-    const  Opts &O;
+    string                   TopDir;
     vector <BlockRangeTuple> Ranges;
-    mutex  Mtx;
+    mutex                    Mtx;
+    map <string, BusyLock *> DirLockMap; // used to resolve races between dir create/delete
 
     i64 Search (i64 Idx);
     i64 Search (i64 Idx, i64 Start, i64 End);
 
     public:
-     BlockList (const string &topdir, const Opts &o);
+     BlockList (const string &topdir);
     ~BlockList ();
 
     i64     Alloc           ();
@@ -47,7 +49,7 @@ class BlockList {
     void    SpitBlock       (i64 Idx, const string &BufStr);
     i64     SpitNewBlock    (         const string &BufStr);
     void    Link            (i64 Idx, const string &Target);
-    void    Clone           (BlockList &Ref);
+    void    Clone           (BlockList &Base);
     void    ReverseAlloc    ();
     void    ReverseAlloc    (const string &Dir);
     void    UnLink          (i64 Idx);

@@ -24,7 +24,8 @@ class HashAndCompressReturn {
     BusyLock     BL;
     char         CompFlag;
     i64          BlockIdx;
-    string       HashHex;
+    string       Hash;
+    bool         Keep;
 
     HashAndCompressReturn () : BL (true) {}
 };
@@ -69,26 +70,28 @@ class ArchiveRead : public Archive {
     void DoExtractJob (const string &ListLine, u64 LineNo);
 };
 
-class ArchiveReference : public ArchiveRead {
+class ArchiveBase : public ArchiveRead {
     public:
     map <string, FileListEntry> FileMap;
     mutex                       FileMapMtx;
 
-     ArchiveReference (RepoInfo *repo, const string &name);
-    ~ArchiveReference ();
+     ArchiveBase (RepoInfo *repo, const string &name);
+    ~ArchiveBase ();
 };
 
 class ArchiveCreate : public Archive {
     public:
-    i64               ZeroLenIdx;
-    mutex             ZeroLenIdxMtx;
-    ArchiveReference *ArchRef;
+    i64          ZeroLenIdx;
+    mutex        ZeroLenIdxMtx;
+    ArchiveBase *ArchBase;
 
-     ArchiveCreate (RepoInfo *repo, const string &name, ArchiveReference *ref);
+     ArchiveCreate (RepoInfo *repo, const string &name, ArchiveBase *base);
     ~ArchiveCreate ();
 
-    void Init          (RepoInfo *repo, const string &name);
-    void PushListEntry (const FileListEntry &ListEntry);
+    void Init                 (RepoInfo *repo, const string &name);
+    void PushListEntry        (const FileListEntry &ListEntry);
+    void PurgeUnusedBlocksJob (const FileListEntry *ListEntry);
+    void PurgeUnusedBlocks    ();
 };
 
 class ArchFile {
@@ -120,13 +123,14 @@ class ArchFileCreate : public ArchFile {
     string         Name;
     LiveFile      *LF;
 
-    ArchFileCreate (ArchiveCreate *arch, LiveFile *lf);
+     ArchFileCreate (ArchiveCreate *arch, LiveFile *lf);
+    ~ArchFileCreate ();
 
-    void Create     (bool Keep);            // add file to archive
-    void CreateJob  (bool Keep);            // add file to archive (runs within thread)
+    void Create     (bool KeepAF);          // add file to archive
+    void CreateJob  (bool KeepAF);          // add file to archive (runs within thread)
     void CreateLink (ArchFileCreate *Prev); // link to previously archived file
     void HashAndCompressJob (const string &ChunkData
-                            ,const ChunkInfo *RefChunkInfo, BlockList *RefBlockList
+                            ,const ChunkInfo *BaseChunkInfo, BlockList *BaseBlockList
                             ,HashAndCompressReturn *HACR);
 };
 

@@ -12,9 +12,9 @@ using namespace std;
 
 class Create {
     public:
-    RepoInfo                  *Repo;      // information about current repository
-    ArchiveCreate             *Arch;      // information about current archive
-    ArchiveReference          *ArchRef;   // information about reference archive
+    RepoInfo       *Repo;      // information about current repository
+    ArchiveCreate  *Arch;      // information about current archive
+    ArchiveBase    *ArchBase;  // information about base archive
     map <uint32_t, map <uint64_t, ArchFileCreate*>> Inodes; // archive info for each inode of each block device
 
      Create ();

@@ -1,6 +1,5 @@
 #include "BlockList.h"
 #include "Logging.h"
-#include "Opts.h"
 #include "Utils.h"
 
 #include <filesystem>
@@ -10,7 +9,7 @@
 #include <stdio.h>
 namespace fs = std::filesystem;
 
-BlockList::BlockList (const string &topdir, const Opts &o) : O(o){
+BlockList::BlockList (const string &topdir) {
     TopDir = topdir;
 }
 
@@ -25,13 +24,11 @@ i64 BlockList::Alloc () {
     // create at head of list if idx 0 isn't allocated
     if (Ranges.size() == 0 || Ranges [0].min > 1) {
         // create first allocated range
-//DBG ("Alloc: Create [0,0]\n");
         Ranges.insert (Ranges.begin(), BlockRangeTuple (0,0));
         return 0;
     }
 
     BlockRangeTuple &Range = Ranges[0];
-//DBG ("Alloc: Range = [%d,%d]\n", (int)Range.min, (int)Range.max);
 
     // allocate from beginning of first range if there's room
     if (Range.min == 1)
@@ -43,17 +40,14 @@ i64 BlockList::Alloc () {
     // see if we need to merge with the next range
     if (Ranges.size() > 1) {
         BlockRangeTuple &RangeNxt = Ranges[1];
-//DBG ("Alloc: RangeNxt = [%d,%d]\n", (int)RangeNxt.min, (int)RangeNxt.max);
         if (Idx >= RangeNxt.min)
             THROW_PBEXCEPTION ("Block Allocation list corrupted. Idx:%" PRId64 " NextMin:%" PRId64, Idx, RangeNxt.min);
         if (Idx == RangeNxt.min-1) {
             // merge ranges 0 and 1
             Range.max = RangeNxt.max;
-//DBG ("Alloc: Merge Range => [%d,%d] = [%d,%d]\n", (int)RangeNxt.min, (int)RangeNxt.max, (int)Range.min, (int)Range.max);
             Ranges.erase (Ranges.begin()+1);
         }
     }
-//DBG ("Alloc: After: Range = [%d,%d]\n", (int)Range.min, (int)Range.max);
 
     return Idx;
 }
@@ -66,9 +60,10 @@ void BlockList::Free (i64 Idx) {
     // find the range containing the block index
     i64 RangeIdx = Search (Idx);
     BlockRangeTuple Range = Ranges[RangeIdx];
-//DBG ("Free (%d): Range = [%d,%d]\n", (int) Idx, (int)Range.min, (int)Range.max);
+    if (RangeIdx >= 0)
+        Range = Ranges[RangeIdx];
     if (RangeIdx < 0 || Range.max < Idx)
-        THROW_PBEXCEPTION ("BlockList::Free: Attempt to free unallocated index: %" PRId64, Idx);
+        THROW_PBEXCEPTION ("BlockList::Free (%s) Attempt to free unallocated index: %" PRId64, TopDir.c_str(), Idx);
 
     if (Range.min == Idx) {
         // free from low end of range
@@ -81,16 +76,13 @@ void BlockList::Free (i64 Idx) {
 
         // split the range into two ranges
         BlockRangeTuple RNext (Idx+1, Range.max);
-//DBG ("Free (%d): RNext = [%d,%d]\n", (int) Idx, (int)RNext.min, (int)RNext.max);
         Ranges.insert (Ranges.begin()+RangeIdx+1, RNext);
 
         Range.max = Idx-1;
     }
 
     // delete the range if its empty
-//DBG ("Free (%d): After: Range = [%d,%d]\n", (int) Idx, (int)Range.min, (int)Range.max);
     if (Range.min > Range.max) {
-//DBG ("Free (%d): Deleting\n", (int) Idx);
         Ranges.erase(Ranges.begin()+RangeIdx);
     } else {
         Ranges [RangeIdx] = Range;
@@ -103,12 +95,10 @@ void BlockList::MarkAllocated (i64 Idx) {
     assert (Idx >= 0);
 
     i64 RangeIdx = Search (Idx);
-//DBG ("MarkAllocated (%d): RangeIdx= %d\n", (int)Idx, (int)RangeIdx);
 
     BlockRangeTuple Range;
     if (RangeIdx < 0) {
         // create new first range
-//DBG ("MarkAllocated (%d): Create Front\n", (int)Idx);
         Range = {Idx, Idx};
         RangeIdx = 0;
         Ranges.insert (Ranges.begin(), 1, Range);
@@ -116,32 +106,26 @@ void BlockList::MarkAllocated (i64 Idx) {
         Range = Ranges [RangeIdx];
         if (Range.max >= Idx)
             THROW_PBEXCEPTION ("BlockList::MarkAllocated: Attempt to mark allocated index: %" PRId64, Idx);
-//DBG ("MarkAllocated (%d): Existing Range [%d,%d]\n", (int)Idx, (int)Range.min, (int)Range.max);
 
         if (Idx == Range.max+1) {
             // merge with previous range
             Range.max = Idx;
-//DBG ("MarkAllocated (%d): Merge\n", (int)Idx);
         } else {
             // create a new range
             RangeIdx ++;
 
             Range = {Idx, Idx};
-//DBG ("MarkAllocated (%d): New\n", (int)Idx);
             Ranges.insert (Ranges.begin() + RangeIdx, 1, Range);
         }
     }
-//DBG ("MarkAllocated (%d): Range [%d,%d]\n", (int)Idx, (int)Range.min, (int)Range.max);
 
     i64 RangeIdxNxt = RangeIdx + 1;
     if ((size_t)RangeIdxNxt < Ranges.size()) {
         BlockRangeTuple NxtRange = Ranges [RangeIdxNxt];
-//DBG ("MarkAllocated (%d): Next Range [%d,%d]\n", (int)Idx, (int)NxtRange.min, (int)NxtRange.max);
         assert (NxtRange.min > Range.max);
 
         if (NxtRange.min == Range.max + 1) {
             Range.max = NxtRange.max;
-//DBG ("MarkAllocated (%d): Merge Next: Range [%d,%d]\n", (int)Idx, (int)Range.min, (int)Range.max);
             Ranges.erase (Ranges.begin()+RangeIdxNxt);
         }
     }
@@ -166,8 +150,6 @@ i64 BlockList::Search (i64 Idx, i64 Start, i64 End) {
     i64   MidNxt  = Mid + 1;
     auto &RMid    = Ranges [Mid];
     auto &RMidNxt = Ranges [MidNxt];
-//DBG ("Search (%d) Start:%d End:%d Mid:%d MidNxt:%d\n", (int)Idx, (int)(Start), (int)End, (int)Mid, (int)MidNxt);
-//DBG ("Search (%d) RMid [%d,%d]\n", (int)Idx, (int)RMid.min, (int)RMid.max);
     if (Idx >= RMid.min
         && (MidNxt >= (i64)Ranges.size() || Idx < RMidNxt.min)
        )
@@ -186,7 +168,6 @@ i64 BlockList::CountAllocated () const {
     for (unsigned i = 0; i < Ranges.size(); i++) {
         auto &Range    = Ranges [i];
         auto &RangeNxt = Ranges [i+1];
-//DBG ("CountAllocated: Range=[%" PRId64 ",%" PRId64 "] RangeNxt=[%" PRId64 ",%" PRId64 "]\n", Range.min, Range.max, RangeNxt.min, RangeNxt.max);
         assert (Range.max >= Range.min);
         assert (i == Ranges.size()-1 || Range.max < RangeNxt.min-1);
         Total += Range.max - Range.min + 1;
@@ -203,9 +184,7 @@ vecstr BlockList::GetSubDirs (i64 Idx) const {
         unsigned Part   = TmpIdx % O.BlockNumModulus;
                  TmpIdx = TmpIdx / O.BlockNumModulus;
 
-        stringstream SubDir;
-        SubDir << "d" << setfill('0') << setw (O.BlockNumDigits) << Part;
-        SubDirs.push_back (SubDir.str());
+        SubDirs.push_back (string ("d") + to_string (Part));
     }
     return SubDirs;
 }
@@ -266,10 +245,10 @@ void BlockList::Link (i64 Idx, const string &Target) {
     Utils::Link (LinkName, Target);
 }
 
-void BlockList::Clone (BlockList &Ref) {
-    for (auto &RefRange : Ref.Ranges)
-        for (i64 Idx = RefRange.min; Idx <= RefRange.max; Idx++) {
-            Link (Idx, Ref.Idx2FileName(Idx));
+void BlockList::Clone (BlockList &Base) {
+    for (auto &BaseRange : Base.Ranges)
+        for (i64 Idx = BaseRange.min; Idx <= BaseRange.max; Idx++) {
+            Link (Idx, Base.Idx2FileName(Idx));
             MarkAllocated (Idx);
         }
 }
@@ -291,10 +270,28 @@ void BlockList::ReverseAlloc (const string &Dir) {
 
 // deallocate block index and delete associate block file 
 void BlockList::UnLink (i64 Idx) {
+DBG ("BlockList::UnLink %s:%ld\n", TopDir.c_str(), Idx);
     assert (Idx >= 0);
-    string FName = Idx2FileName (Idx);
-DBG ("UnLink: Deleting %s\n", FName.c_str());
+
+PB_Exception e;
+DBG ("BlockList::UnLink %s %s\n", Idx2FileName(Idx).c_str(), e.Backtrace().c_str());
+
     Free (Idx);
+    string DirName = Idx2DirString (Idx);
+    string FName   = DirName + "/" + to_string(Idx);
     if (!fs::remove (FName))
-        THROW_PBEXCEPTION_IO ("Can't delete %s", FName.c_str());
+        THROW_PBEXCEPTION_IO ("Can't delete: %s", FName.c_str());
+
+    // resolve contention for the dir
+    //BusyLock Lock(1);
+    //Mtx.lock();
+    //MyLock = DirLockMap.count (DirName) == 0;
+    //if (MyLock)
+    //    DirLockMap [DirName] = &Lock;
+    //Mtx.unlock();
+    //if (!MyLock)
+    //    DirLockMap [DirName]->WaitIdle();
+
+    if (fs::is_empty (DirName) && !fs::remove (DirName))
+        THROW_PBEXCEPTION_IO ("Can't remove directory: %s", FName.c_str());
 }

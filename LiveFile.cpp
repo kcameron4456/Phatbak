@@ -51,14 +51,14 @@ void ExtractChunkJob (const ChunkInfo *Chunk, const BlockList *ChunkBlocks, i64 
     // handle decompress
     string *SelData = &ChunkData;
     string DeCompressed;
-    if (Chunk->CompType != CompType_NONE) {
-        Comp::DeCompress (Chunk->CompType, ChunkData, DeCompressed);
+    if (Chunk->CompFlag != CompFlagUnComp) {
+        Comp::DeCompress (Comp::CompFlag2CompType (Chunk->CompFlag, O), ChunkData, DeCompressed);
         SelData = &DeCompressed;
     }
 
     string ChunkDataHash = HashStr (O.HashType, *SelData);
     if (ChunkDataHash != Chunk->Hash)
-        THROW_PBEXCEPTION_FMT ("Hash mismatch on data chunk #%llu", Chunk->Idx);
+        THROW_PBEXCEPTION_FMT ("Hash mismatch on data chunk #%llu", Chunk->ChunkIdx);
 
     if (PrevLock)
         PrevLock->WaitIdle();
@@ -125,13 +125,13 @@ LiveFile::LiveFile (const FileListEntry &ListEntry
                     Thr->JobType                      = JobCtrl::ExtractChunk;
                     Thr->ExtractChunkInfo.Chunk       = &Chunk;
                     Thr->ExtractChunkInfo.ChunkBlocks = ChunkBlocks;
-                    Thr->ExtractChunkInfo.BlockIdx    = Chunk.Idx;
+                    Thr->ExtractChunkInfo.BlockIdx    = Chunk.ChunkIdx;
                     Thr->ExtractChunkInfo.F           = F;
                     Thr->ExtractChunkInfo.Lock        = Lock;
                     Thr->ExtractChunkInfo.PrevLock    = PrevLock;
                     Thr->Go();
                 } else {
-                    ExtractChunkJob (&Chunk, ChunkBlocks, Chunk.Idx, F, Lock, PrevLock);
+                    ExtractChunkJob (&Chunk, ChunkBlocks, Chunk.ChunkIdx, F, Lock, PrevLock);
                 }
 
 
@@ -203,10 +203,12 @@ void SplitFileName (const string &RawName, string &Path, string &Name) {
 
 void LiveFile::OpenRead () {
     F = OpenReadBin (Name);
+    assert (F);
 }
 
 void LiveFile::OpenWrite () {
     F = OpenWriteBin (Name);
+    assert (F);
 }
 
 void LiveFile::Close () {
@@ -216,17 +218,21 @@ void LiveFile::Close () {
 }
 
 int LiveFile::Read (char *Buf, int ReqSize) {
+    assert (F);
     return ReadBinary (F, Buf, ReqSize);
 }
 
 int  LiveFile::ReadChunk (string &Chunk) {
+    assert (F);
     return ReadBinary (F, Chunk, O.ChunkSize);
 }
 
 void LiveFile::Write (const string &Str) {
+    assert (F);
     WriteBinary (F, Str);
 }
 
 void LiveFile::Write (char *Buf, int ReqSize) {
+    assert (F);
     WriteBinary (F, Buf, ReqSize);
 }

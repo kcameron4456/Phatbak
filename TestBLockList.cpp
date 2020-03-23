@@ -7,7 +7,7 @@
 #include <iterator>
 #include <inttypes.h>
 
-BlockList                     List ("Test", O);
+BlockList                     List ("Test");
 map <i64, bool>               Allocated, UnAllocated;
 default_random_engine         generator (12345);
 int                           ComIdx;
@@ -68,11 +68,10 @@ void DoTestSize () {
 }
 
 int main (int argc, char **argv) {
-    O.BlockNumDigits  = 2;
     O.BlockNumModulus = 100;
     O.DebugPrint = 0;
 
-    int count = 100;
+    int count = 1000000;
     for (int i = 1; i < argc; i++) {
         if (string ("-c") == argv[i])
             count = stoi (string (argv[++i]), NULL, 10);

@@ -39,8 +39,8 @@ void BackGroundWorker (JobCtrl *Job) {
                 case JobCtrl::CompressChunk :
                     Job->CompressChunkInfo.AF->HashAndCompressJob (
                         Job->CompressChunkInfo.ChunkData
-                       ,Job->CompressChunkInfo.RefChunkInfo
-                       ,Job->CompressChunkInfo.RefBlockList
+                       ,Job->CompressChunkInfo.BaseChunkInfo
+                       ,Job->CompressChunkInfo.BaseBlockList
                        ,Job->CompressChunkInfo.HACR
                        );
                     Job->CompressChunkInfo.ChunkData.resize (0); // release potentially large buffer
@@ -81,6 +81,8 @@ void ThreadPool_t::AddThreads (int N) {
         JobCtrl *Job = new JobCtrl (i);
         All  .push_back(Job);
         Avail.push_back(Job);
+        if (i < JobArraySize)
+            JobArray [i] = Job;
     }
 
     // tell any waiting threads

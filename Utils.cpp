@@ -99,6 +99,7 @@ FILE* Utils::OpenReadBin (const string &Name) {
     FILE* F;
     if (!(F = fopen (Name.c_str(), "rb")))
         THROW_PBEXCEPTION_IO ("Can't open %s for read", Name.c_str());
+    assert (F);
     return F;
 }
 
@@ -113,6 +114,7 @@ FILE * Utils::OpenWriteBin (const string &Name) {
     FILE* F;
     if (!(F = fopen (Name.c_str(), "wb")))
         THROW_PBEXCEPTION_IO ("Can't open %s for write", Name.c_str());
+    assert (F);
     return F;
 }
 
@@ -127,6 +129,7 @@ string Utils::ReadLine (fstream &Stream, bool DieOnEOF) {
 }
 
 int Utils::ReadBinary (FILE *F, char *Buf, int BufSize) {
+    assert (F);
     int BytesRead;
     if ((BytesRead = fread (Buf, 1, BufSize, F)) < 0)
         THROW_PBEXCEPTION_IO ("Read failed");
@@ -134,6 +137,7 @@ int Utils::ReadBinary (FILE *F, char *Buf, int BufSize) {
 }
 
 int Utils::ReadBinary (FILE *F, string &Str, int MaxSize) {
+    assert (F);
     Str.resize(MaxSize);
     int Size = ReadBinary (F, Str.data(), MaxSize);
     Str.resize (Size);
@@ -141,11 +145,13 @@ int Utils::ReadBinary (FILE *F, string &Str, int MaxSize) {
 }
 
 void Utils::WriteBinary (FILE *F, const char *Buf, unsigned BufSize) {
+    assert (F);
     if (fwrite (Buf, 1, BufSize, F) != BufSize)
         THROW_PBEXCEPTION_IO ("Write failed");
 }
 
 void Utils::WriteBinary (FILE *F, const string &Str) {
+    assert (F);
     WriteBinary (F, Str.c_str(), Str.size());
 }
 
@@ -159,7 +165,7 @@ void Utils::CreateDir (const string Dir, bool CreateSubs) {
             return;
     }
     if (ec)
-        THROW_PBEXCEPTION_IO ("Utils::CreateDir Failed to create %s: %s", Dir.c_str(), ec.message().c_str());
+        THROW_PBEXCEPTION ("Utils::CreateDir Failed to create %s: %s", Dir.c_str(), ec.message().c_str());
 }
 
 void Utils::MakeHardLink (const string &ExistingFile, const string &NewName) {

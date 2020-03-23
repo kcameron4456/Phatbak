@@ -25,7 +25,6 @@ class Opts {
     StrList_t FileArgs;         // List of file names to be archived or extracted
     string    RepoDirName;      // Repository dir for archives
     string    ArchDirName;      // Archive directory withing the repo
-    int       BlockNumDigits;   // Number of digits to assign to each level of a blocked directory
     int       BlockNumModulus;  // Amount by which divide block indices to create block levels
     unsigned  ChunkSize;        // Max size of data blocks into which file data are stored
     eHashType HashType;         // hash algorithm
@@ -36,7 +35,7 @@ class Opts {
     int       CompLevel;        // compression effort
     string    ExtractTarget;    // directory into which to place files extracted from an Archive
     bool      Rebase;           // true to force a new base archive on create
-    string    RefArchive;       // user-specified base archive
+    string    BaseArchive;      // user-specified base archive
     bool      DebugPrint;       // true output trace info for debug
 
     enum      {DoUndef  , DoCreate,

@@ -2,6 +2,7 @@
 #include "Opts.h"
 #include "Logging.h"
 #include "Utils.h"
+#include "ThreadPool.h"
 
 #include <string>
 #include <vector>
@@ -13,25 +14,25 @@ namespace fs = std::filesystem;
 Create::Create () {
     Repo = new RepoInfo   (O.RepoDirName);
 
-    // see if we want to reference the new archive to a previous one
+    // see if we want to base the new archive to a previous one
     bool Rebase = O.Rebase || Repo->LatestArchName == "" || Repo->LatestArchName == O.ArchDirName;
-    ArchRef = NULL;
+    ArchBase = NULL;
     if (Rebase) {
         printf ("Creating new base archive: %s::%s\n", Repo->Name.c_str(), O.ArchDirName.c_str());
     } else {
-        printf ("Creating archive: %s::%s using reference archive: %s::%s\n",
+        printf ("Creating archive: %s::%s using base archive: %s::%s\n",
                 Repo->Name.c_str(), O.ArchDirName.c_str(), Repo->Name.c_str(), Repo->LatestArchName.c_str());
 
-        ArchRef = new ArchiveReference (Repo, Repo->LatestArchName);
+        ArchBase = new ArchiveBase (Repo, Repo->LatestArchName);
     }
 
-    Arch = new ArchiveCreate (Repo, O.ArchDirName, ArchRef);
+    Arch = new ArchiveCreate (Repo, O.ArchDirName, ArchBase);
 }
 
 Create::~Create () {
     delete Arch;
-    if (ArchRef)
-        delete ArchRef;
+    if (ArchBase)
+        delete ArchBase;
     delete Repo;
 }
 
@@ -39,6 +40,16 @@ void Create::DoCreate () {
     // do the archive creation
     for (auto Dir : O.FileArgs)
         DoCreate (Utils::CanonizeFileName (Dir));
+
+    // wait for threads to complete
+    ThreadPool.WaitIdle();
+
+    // trim unused finfo and chunk blocks
+    if (ArchBase)
+        Arch->PurgeUnusedBlocks();
+
+    // wait for threads to complete
+    ThreadPool.WaitIdle();
 
     Repo->Finish(O.ArchDirName);
 }
@@ -48,9 +59,9 @@ void Create::DoCreate (const string &Name) {
         cout << Name << endl;
 
     // create local and archive file structures
-    LiveFile       *LF      = new LiveFile (Name);
-    ArchFileCreate *AF      = new ArchFileCreate (Arch, LF);
-    vecstr          SubDirs = LF->GetSubs();
+    LiveFile       *LF   = new LiveFile (Name);
+    vecstr          Subs = LF->GetSubs();
+    ArchFileCreate *AF   = new ArchFileCreate (Arch, LF);
 
     // if the device and inode has already been seen, process hard link
     bool KeepAF = false;
@@ -76,6 +87,6 @@ void Create::DoCreate (const string &Name) {
     AF->Create(KeepAF);
 
     // create sub dirs/files
-    for (auto Sub : SubDirs)
+    for (auto &Sub : Subs)
         DoCreate (Sub);
 }

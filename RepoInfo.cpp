@@ -16,23 +16,19 @@ RepoInfo::RepoInfo (const string &name) {
         // TBD: optionally create repo if it doesn't exist
         THROW_PBEXCEPTION_FMT ("Repo Indentifier (%s) not found", RepoId.c_str());
 
-    // check for previous reference archive 
+    // check for previous base archive 
     LatestArchName = "";
-    //don't allow reference archive for now
-    //TBD: get rid of this
-    #if (0)
-    if (O.RefArchive == "") {
+    if (O.BaseArchive == "") {
         string LatestArchLink = Name + "/LatestArchive";
-        if (fs::exists (LatestArchLink + "/" PHATBAK_ARCH_ID))
+        if (0 && fs::exists (LatestArchLink + "/" PHATBAK_ARCH_ID)) // TBD: figure out another way
             LatestArchName = fs::read_symlink (LatestArchLink);
     } else {
-        string TryName = O.RefArchive;
+        string TryName = O.BaseArchive;
         if (fs::exists (Name + "/" + TryName + "/" PHATBAK_ARCH_ID))
             LatestArchName = TryName;
         else
-            THROW_PBEXCEPTION_FMT ("Reference archive (%s) doesn't exist", O.RefArchive.c_str());
+            THROW_PBEXCEPTION_FMT ("Base archive (%s) doesn't exist", O.BaseArchive.c_str());
     }
-    #endif
 }
 
 void RepoInfo::Finish (const string &ArchName) {

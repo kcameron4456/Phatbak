@@ -21,7 +21,7 @@
 using namespace std;
 
 #ifdef DBGMSG
-extern mutex DBG_Mutex;
+extern recursive_mutex DBG_Mutex;
 #define DBG(...) {if (O.DebugPrint) { \
                   unsigned long nowns = chrono::duration_cast<chrono::nanoseconds> \
                                         (chrono::system_clock::now().time_since_epoch()).count(); \

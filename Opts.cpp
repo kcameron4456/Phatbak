@@ -147,15 +147,12 @@ void Opts::ParseCmdLine (const int argc, const char *argv[]) {
     NumThreads      = 100;
     CompType        = CompType_ZTSD;
     CompLevel       = 2;
-    BlockNumDigits  = 2;
     ChunkSize       = 1 << 18;
     HashType        = HashType_MD5;
     ExtractTarget   = "PhatBakExtract";
     DebugPrint      = 0;
-    BlockNumModulus = 1;
+    BlockNumModulus = 100;
     Rebase          = false;
-    for (int i = 0; i < BlockNumDigits; i++)
-        BlockNumModulus *= 10;
 
     // save command line
     int argidx;
@@ -213,10 +210,9 @@ void Opts::ParseCmdLine (const int argc, const char *argv[]) {
         PARSE_MinusVal ("--CompLevel"       ,"%d", &CompLevel,)
         PARSE_MinusStr ("--HashType"        , arg, HashType = HashNameToEnum(arg);)
         PARSE_MinusVal ("--ChunkSize"       ,"%d", &ChunkSize,)
-        PARSE_MinusVal ("--BlockNumDigits"  ,"%d", &BlockNumDigits,)
         PARSE_MinusVal ("--BlockNumModulus" ,"%d", &BlockNumModulus,)
         PARSE_MinusFlg ("--rebase"          ,, Rebase    , 1,)
-        PARSE_MinusStr ("--RefArchive"      ,  RefArchive,   )
+        PARSE_MinusStr ("--BaseArchive"     ,  BaseArchive,  )
         PARSE_MinusFlg ("-h"                ,, arg       , arg, PrintHelp();)
         PARSE_MinusFlg ("-help"             ,, arg       , arg, PrintHelp();)
         PARSE_MinusFlg ("--help"            ,, arg       , arg, PrintHelp();)
@@ -274,8 +270,7 @@ string Opts::OptsString () {
     F << "   FileArgs        = " << Utils::JoinStrs (FileArgs, " ") << endl;
     F << "   RepoDirName     = " << RepoDirName                     << endl;
     F << "   ArchDirName     = " << ArchDirName                     << endl;
-    F << "   RefArchive      = " << RefArchive                      << endl;
-    F << "   BlockNumDigits  = " << BlockNumDigits                  << endl;
+    F << "   BaseArchive     = " << BaseArchive                     << endl;
     F << "   BlockNumModulus = " << BlockNumModulus                 << endl;
     F << "   ChunkSize       = " << ChunkSize                       << endl;
     F << "   HashType        = " << HashNames[HashType]             << endl;
