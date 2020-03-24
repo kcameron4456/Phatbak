@@ -1,6 +1,7 @@
 #include "BlockList.h"
 #include "Logging.h"
 #include "Utils.h"
+#include "ThreadPool.h"
 
 #include <filesystem>
 #include <string>
@@ -19,20 +20,24 @@ BlockList::~BlockList () {
 // allocate a block index
 // always allocate the lowest availabel index
 i64 BlockList::Alloc () {
-    unique_lock<mutex> lock(Mtx);
+    unique_lock<recursive_mutex> lock(Mtx);
 
     // create at head of list if idx 0 isn't allocated
     if (Ranges.size() == 0 || Ranges [0].min > 1) {
         // create first allocated range
         Ranges.insert (Ranges.begin(), BlockRangeTuple (0,0));
+        DBG ("BlockList::Alloc Idx=0\n");
         return 0;
     }
 
     BlockRangeTuple &Range = Ranges[0];
 
     // allocate from beginning of first range if there's room
-    if (Range.min == 1)
-        return Range.min = 0;
+    if (Range.min == 1) {
+        Range.min = 0;
+        DBG ("BlockList::Alloc Idx=0\n");
+        return 0;
+    }
 
     // allocate at the end of the first range
     i64 Idx = ++Range.max;
@@ -49,12 +54,13 @@ i64 BlockList::Alloc () {
         }
     }
 
+    DBG ("BlockList::Alloc Idx=%ld\n", Idx);
     return Idx;
 }
 
 // free a block index from the allocated blocks
 void BlockList::Free (i64 Idx) {
-    unique_lock<mutex> lock(Mtx);
+    unique_lock<recursive_mutex> lock(Mtx);
     assert (Idx >= 0);
 
     // find the range containing the block index
@@ -89,9 +95,24 @@ void BlockList::Free (i64 Idx) {
     }
 }
 
+bool BlockList::IsAllocated (i64 Idx) {
+    unique_lock<recursive_mutex> lock(Mtx);
+    assert (Idx >= 0);
+
+    // find the range containing the block index
+    i64 RangeIdx = Search (Idx);
+    if (RangeIdx < 0)
+        return false;
+
+    BlockRangeTuple Range = Ranges[RangeIdx];
+    assert (Range.min <= Range.max);
+    assert (Range.min <= Idx);
+    return Range.max >= Idx;
+}
+
 // mark a block as allocated
 void BlockList::MarkAllocated (i64 Idx) {
-    unique_lock<mutex> lock(Mtx);
+    unique_lock<recursive_mutex> lock(Mtx);
     assert (Idx >= 0);
 
     i64 RangeIdx = Search (Idx);
@@ -134,12 +155,12 @@ void BlockList::MarkAllocated (i64 Idx) {
 }
 
 // find the last tuple whose max value is less than or equal to a given index
-i64 BlockList::Search (i64 Idx) {
+i64 BlockList::Search (i64 Idx) const {
     assert (Idx >= 0);
     return Search (Idx, 0, Ranges.size()-1);
 }
 
-i64 BlockList::Search (i64 Idx, i64 Start, i64 End) {
+i64 BlockList::Search (i64 Idx, i64 Start, i64 End) const {
     if (Start > End)
         return -1;
 
@@ -189,12 +210,19 @@ vecstr BlockList::GetSubDirs (i64 Idx) const {
     return SubDirs;
 }
 
+// convert an index into a string containing only subdirs
+string BlockList::Idx2SubDirString (i64 Idx) const {
+    vecstr SubDirs = GetSubDirs (Idx);
+    return Utils::JoinStrs (SubDirs, "/");
+}
+
 // convert a block number to a directory path
 string BlockList::Idx2DirString (i64 Idx) const {
-    assert (Idx >= 0);
-    vecstr Dirs = GetSubDirs (Idx);
-    Dirs.insert (Dirs.begin(), 1, TopDir);
-    return Utils::JoinStrs (Dirs, "/");
+    return Idx2DirString (Idx, TopDir);
+}
+
+string BlockList::Idx2DirString (i64 Idx, const string &Top) const {
+    return Top + "/" + Idx2SubDirString (Idx);
 }
 
 // convert a block number to a path relative to a top dir
@@ -237,41 +265,17 @@ i64 BlockList::SpitNewBlock (const string &BufStr) {
     return Blk;
 }
 
-void BlockList::Link (i64 Idx, const string &Target) {
+void BlockList::Link (i64 Idx, const string &TargTop) {
     assert (Idx >= 0);
-    string Dir = Idx2DirString (Idx);
+    string DirStr  = Idx2SubDirString (Idx);
+    string IdxStr  = to_string        (Idx);
+
+    string Dir     = TopDir + "/" + DirStr;
     Utils::CreateDir (Dir, 1);
-    string LinkName = Dir + "/" + to_string (Idx);
+
+    string LinkName = Dir                    + "/" + IdxStr;
+    string Target   = TargTop + "/" + DirStr + "/" + IdxStr;
     Utils::Link (LinkName, Target);
-}
-
-void BlockList::Clone (const BlockList &Base) {
-#if 1
-    for (auto &BaseRange : Base.Ranges)
-        for (i64 Idx = BaseRange.min; Idx <= BaseRange.max; Idx++) {
-            Link (Idx, Base.Idx2FileName(Idx));
-            MarkAllocated (Idx);
-        }
-#else
-// maybe later
-    error_code ec;
-    // get rid of the top directory
-    if (!fs::remove (TopDir, ec)
-       && ec
-       && ec != errc::no_such_file_or_directory
-       )
-        THROW_PBEXCEPTION_IO ("Can't remove directory: %s: %s", ec.message().c_str(), TopDir.c_str());
-
-    // recursive copy with hardlinks from base
-    fs::copy (Base.TopDir, TopDir
-             ,fs::copy_options::recursive | fs::copy_options::create_hard_links
-             ,ec
-             );
-    if (ec)
-        THROW_PBEXCEPTION_IO ("Can't copy blocks from %s to %s\n", Base.TopDir.c_str(), TopDir.c_str());
-
-    ReverseAlloc(TopDir);
-#endif
 }
 
 void BlockList::ReverseAlloc () {
@@ -282,31 +286,13 @@ void BlockList::ReverseAlloc (const string &Dir) {
     vecstr SubDirs, SubFiles;
     Utils::SlurpDir (Dir, SubDirs, SubFiles);
 
-    for (auto SubFile : SubFiles)
-        MarkAllocated (strtoull (SubFile.c_str(), NULL, 10));
+    for (auto SubDir : SubDirs) {
+        function <void()> Task = [=](){ReverseAlloc (Dir + "/" + SubDir);};
+        ThreadPool.Execute (Task, 0);
+    }
 
-    for (auto SubDir : SubDirs)
-        ReverseAlloc (Dir + "/" + SubDir);
-}
-
-// deallocate block index and delete associate block file 
-void BlockList::UnLink (i64 Idx) {
-    assert (Idx >= 0);
-
-    Free (Idx);
-    string DirName = Idx2DirString (Idx);
-    string FName   = DirName + "/" + to_string(Idx);
-    if (!fs::remove (FName))
-        THROW_PBEXCEPTION_IO ("Can't delete: %s", FName.c_str());
-
-    // try to remove the directory
-    // catch error code if it's not empty
-    // catch error code if another thread already removed it
-    error_code ec;
-    if (!fs::remove (DirName, ec)
-       && ec
-       && ec != errc::no_such_file_or_directory
-       && ec != errc::directory_not_empty
-       )
-        THROW_PBEXCEPTION_IO ("Can't remove directory: %s: %s", ec.message().c_str(), DirName.c_str());
+    for (auto SubFile : SubFiles) {
+        function <void()> Task = [=](){MarkAllocated (strtoull (SubFile.c_str(), NULL, 10));};
+        ThreadPool.Execute (Task, 0);
+    }
 }

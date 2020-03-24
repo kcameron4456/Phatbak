@@ -24,6 +24,7 @@ namespace Comp {
     eCompType CompNameToEnum    (const string &Name);
 
     void        Compress   (                    const string &InStr, string &OutStr);
+    void        Compress   (eCompType CompType, const string &InStr, string &OutStr);
     void      DeCompress   (eCompType CompType, const string &InStr, string &OutStr);
     void      DeCompress   (char      CompFlag, const string &InStr, string &OutStr);
 

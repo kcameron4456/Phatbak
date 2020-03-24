@@ -94,6 +94,11 @@ namespace Utils {
 
     // set modification time on a file
     void SetModTime (const string &Name, timespec Time);
-}
 
+    // get file acls of one type
+    string GetFileAcl (const string &Name, u32 type);
+
+    // get both types of file acls
+    string GetFileAcls (const string &Name);
+}
 #endif // UTILS_H

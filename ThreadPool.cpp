@@ -17,64 +17,17 @@ void BackGroundWorker (JobCtrl *Job) {
             DBG ("Job #%d, Wait for busy\n", Job->Idx);
             Job->Busy.WaitBusy ();
             if (StopThreads) {
-                DBG ("Job #%d, Type=%d Abort\n", Job->Idx, Job->JobType);
+                DBG ("Job #%d Abort\n", Job->Idx);
                 Job->Busy.PostIdle();
                 break;
             }
 
             // process the job
-            DBG ("Job #%d, Type=%d Starting\n", Job->Idx, Job->JobType);
-            switch (Job->JobType) {
-                case JobCtrl::CreateFile :
-                    Job->CreateFileInfo.AF->CreateJob(
-                        Job->CreateFileInfo.Keep
-                        );
-                    break;
-                case JobCtrl::ExtractFile :
-                    Job->ExtractFileInfo.Arch->DoExtractJob(
-                          Job->ExtractFileInfo.ListLine
-                         ,Job->ExtractFileInfo.LineNo
-                        );
-                    break;
-                case JobCtrl::CompressChunk :
-                    Job->CompressChunkInfo.AF->HashAndCompressJob (
-                        Job->CompressChunkInfo.ChunkData
-                       ,Job->CompressChunkInfo.BaseChunkInfo
-                       ,Job->CompressChunkInfo.BaseBlockList
-                       ,Job->CompressChunkInfo.HACR
-                       );
-                    Job->CompressChunkInfo.ChunkData.resize (0); // release potentially large buffer
-                    break;
-                case JobCtrl::ExtractChunk :
-                    ExtractChunkJob (
-                        Job->ExtractChunkInfo.Chunk
-                       ,Job->ExtractChunkInfo.ChunkBlocks
-                       ,Job->ExtractChunkInfo.BlockIdx
-                       ,Job->ExtractChunkInfo.F
-                       ,Job->ExtractChunkInfo.Lock
-                       ,Job->ExtractChunkInfo.PrevLock
-                    );
-                    break;
-                case JobCtrl::ReverseAlloc :
-                    ReverseAllocJob (
-                        Job->ReverseAllocInfo.Blocks
-                    );
-                    break;
-                case JobCtrl::CloneBlocks :
-                    CloneBlocksJob (
-                        Job->CloneBlocksInfo.TargetBlocks
-                       ,Job->CloneBlocksInfo.SourceBlocks
-                    );
-                    break;
-                case JobCtrl::PurgeUnusedBlocks :
-                    Job->PurgeUnusedBlocksInfo.Arch->PurgeUnusedBlocksJob (
-                        Job->PurgeUnusedBlocksInfo.ListEntry
-                    );
-                    break;
-                default:
-                    THROW_PBEXCEPTION ("Unrecognized job type: %d", Job->JobType);
-            }
-            DBG ("Job #%d, Type=%d Finished\n", Job->Idx, Job->JobType);
+            DBG ("Job #%d, Starting\n", Job->Idx);
+            assert (Job->Task);
+                 (*(Job->Task))();
+            delete  Job->Task;
+            DBG ("Job #%d, Finished\n", Job->Idx);
 
             // release the thread to the pool
             Job->Busy.PostIdle();
@@ -148,4 +101,22 @@ void ThreadPool_t::ReleaseThread (JobCtrl *Job) {
     Avail.push_back (Job);
 
     CV.notify_all();
+}
+
+void ThreadPool_t::Execute (function <void()> &Task, bool Wait) {
+    auto T = new function <void()> (Task);
+    Execute (T, Wait);
+}
+
+void ThreadPool_t::Execute (function <void()> *Task, bool Wait) {
+    JobCtrl *Thr = NULL;
+    if (All.size())
+        Thr = AllocThread(Wait);
+    if (Thr) {
+        Thr->Task    = Task;
+        Thr->Go();
+    } else {
+        (*Task)();
+        delete Task;
+    }
 }

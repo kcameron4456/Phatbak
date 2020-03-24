@@ -9,6 +9,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <functional>
 using namespace std;
 
 // class to contain info needed to start a job on a waiting thread
@@ -23,52 +24,8 @@ class JobCtrl {
     thread      *Thr;  // pointer to thread control structure 
     BusyLock     Busy; // tells worker when there's work to be done
 
-    // tells the thread what type of work to do
-    enum {
-        CreateFile = 1   , // create archive file
-        ExtractFile      , // extract file from archive
-        CompressChunk    , // compress one data chunk and write it to the archive
-        ExtractChunk     , // extract chunk info into restored file
-        ReverseAlloc     , // reverse allocate blocks from actual disk files
-        CloneBlocks      , // clone blocks from another archive
-        PurgeUnusedBlocks, // remove unused file links from base archive
-    } JobType;
-
-    struct {
-        ArchFileCreate *AF;
-        bool            Keep;
-    } CreateFileInfo;
-    struct {
-        ArchiveRead *Arch;
-        string       ListLine;
-        u64          LineNo;
-    } ExtractFileInfo;
-    struct {
-              ArchFileCreate        *AF;
-              string                 ChunkData;
-        const ChunkInfo             *BaseChunkInfo;
-              BlockList             *BaseBlockList;
-              HashAndCompressReturn *HACR;
-    } CompressChunkInfo;
-    struct {
-        const ChunkInfo *Chunk;
-        const BlockList *ChunkBlocks;
-        i64              BlockIdx;
-        FILE            *F;
-        BusyLock        *Lock;
-        BusyLock        *PrevLock;
-    } ExtractChunkInfo;
-    struct {
-        BlockList *Blocks;
-    } ReverseAllocInfo;
-    struct {
-              BlockList *TargetBlocks;
-        const BlockList *SourceBlocks;
-    } CloneBlocksInfo;
-    struct {
-        ArchiveCreate *Arch;
-        FileListEntry  ListEntry;
-    } PurgeUnusedBlocksInfo;
+    // generic self-contained task
+    function <void()> *Task;
 
     JobCtrl (int idx) {
         Idx = idx;
@@ -115,10 +72,12 @@ class ThreadPool_t {
     }
 
     void     AddThreads    (int N);
-    JobCtrl *AllocThread   (bool Wait = 1);
-    void     ReleaseThread (JobCtrl *Job);
     void     WaitIdle      ();  // wait for all jobs to finish
     void     JoinAll       ();
+    JobCtrl *AllocThread   (bool Wait = 1);
+    void     ReleaseThread (JobCtrl *Job);
+    void     Execute       (function <void()> &Task, bool Wait = 1);
+    void     Execute       (function <void()> *Task, bool Wait = 1);
 };
 
 // global job pool

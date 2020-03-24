@@ -44,13 +44,6 @@ void Create::DoCreate () {
     // wait for threads to complete
     ThreadPool.WaitIdle();
 
-    // trim unused finfo and chunk blocks
-    if (ArchBase)
-        Arch->PurgeUnusedBlocks();
-
-    // wait for threads to complete
-    ThreadPool.WaitIdle();
-
     Repo->Finish(O.ArchDirName);
 }
 

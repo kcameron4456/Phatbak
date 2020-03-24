@@ -20,6 +20,7 @@ CXXFLAGS =
 CPPFLAGS += -std=c++17 $(MYCFLAGS)
 LDFLAGS  += -lpthread -lstdc++fs -lzstd -lmhash
 LDFLAGS  += -rdynamic -lboost_stacktrace_addr2line
+LDFLAGS  += -lacl
 
 ifdef PROF
     LDFLAGS += -lprofiler

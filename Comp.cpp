@@ -35,7 +35,11 @@ char Comp::CompType2CompFlag (eCompType Type) {
 }
 
 void Comp::Compress (const string &InStr, string &OutStr) {
-    switch (O.CompType) {
+    Compress (O.CompType, InStr, OutStr);
+}
+
+void Comp::Compress (eCompType CompType, const string &InStr, string &OutStr) {
+    switch (CompType) {
         case CompType_ZTSD :
             Compress_ZSTD (InStr, OutStr);
             return;

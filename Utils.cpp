@@ -8,6 +8,8 @@
 #include <filesystem>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <acl/libacl.h>
+#include <sys/acl.h>
 namespace fs = std::filesystem;
 
 vecstr Utils::SplitStr (string Src, const string &Pat) {
@@ -302,4 +304,71 @@ void Utils::SetModTime (const string &Name, timespec Time) {
     struct timespec TV[2] = {Time, Time};
     if (utimensat (AT_FDCWD, Name.c_str(), TV, AT_SYMLINK_NOFOLLOW))
         THROW_PBEXCEPTION_IO ("Can't set mod time of %s", Name.c_str()); 
+}
+
+string Utils::GetFileAcl (const string &Name, u32 Type) {
+    // get file acl struture
+    auto Acl = acl_get_file(Name.c_str(), Type);
+    if (Acl == 0)
+        return ""; // no acl of this type
+    if (Acl < 0)
+        THROW_PBEXCEPTION_IO ("Can't get acl for: %s", Name.c_str());
+
+    // filter out base acl entries
+    acl_t NewACL = acl_init(0);
+    acl_entry_t Entry;
+    for (int EntStat = acl_get_entry (Acl, ACL_FIRST_ENTRY, &Entry);
+             EntStat == 1;
+             EntStat = acl_get_entry (Acl, ACL_NEXT_ENTRY , &Entry)) {
+
+        // get entry type
+        acl_tag_t tag;
+        acl_get_tag_type(Entry, &tag);
+
+        // ignore base permissions
+        if ( tag == ACL_USER_OBJ
+           ||tag == ACL_GROUP_OBJ
+           ||tag == ACL_OTHER
+           )
+            continue;
+
+        acl_entry_t NewEntry;
+        if (acl_create_entry (&NewACL, &NewEntry) < 0)
+            THROW_PBEXCEPTION_IO ("Can't create acl entry\n");
+        if (acl_copy_entry (NewEntry, Entry) < 0)
+            THROW_PBEXCEPTION_IO ("Can't copy acl entry\n");
+    }
+
+    // if no acls remain, we're done
+    if (acl_entries(NewACL) <= 0)
+        return "";
+
+    // convert to short form text
+    char *AclText = acl_to_any_text (NewACL, NULL, ',', TEXT_ABBREVIATE | TEXT_NUMERIC_IDS);
+    string AclStr (AclText);
+
+    // release resources
+    acl_free (AclText);
+    acl_free (Acl);
+    acl_free (NewACL);
+
+    string Result;
+    Result += (Type == ACL_TYPE_DEFAULT ? 'D' : 'A');
+    Result += string ("|") + AclStr;
+
+    return Result;
+}
+
+string Utils::GetFileAcls (const string &Name) {
+    vecstr ACLs;
+    for (int Type : {ACL_TYPE_ACCESS, ACL_TYPE_DEFAULT}) {
+        string ACLHex = GetFileAcl (Name, Type);
+        if (ACLHex.size())
+            ACLs.push_back(ACLHex);
+    }
+
+    if (ACLs.size())
+        return string("acl:") + JoinStrs (ACLs, ";");
+
+    return "";
 }

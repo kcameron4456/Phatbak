@@ -88,10 +88,8 @@ class ArchiveCreate : public Archive {
      ArchiveCreate (RepoInfo *repo, const string &name, ArchiveBase *base);
     ~ArchiveCreate ();
 
-    void Init                 (RepoInfo *repo, const string &name);
-    void PushListEntry        (const FileListEntry &ListEntry);
-    void PurgeUnusedBlocksJob (const FileListEntry &ListEntry);
-    void PurgeUnusedBlocks    ();
+    void Init          (RepoInfo *repo, const string &name);
+    void PushListEntry (const FileListEntry &ListEntry);
 };
 
 class ArchFile {
@@ -130,11 +128,8 @@ class ArchFileCreate : public ArchFile {
     void CreateJob  (bool KeepAF);          // add file to archive (runs within thread)
     void CreateLink (ArchFileCreate *Prev); // link to previously archived file
     void HashAndCompressJob (const string &ChunkData
-                            ,const ChunkInfo *BaseChunkInfo, BlockList *BaseBlockList
+                            ,const ChunkInfo *BaseChunkInfo, const BlockList *BaseBlockList
                             ,HashAndCompressReturn *HACR);
 };
-
-void CloneBlocksJob  (BlockList *Dst, const BlockList *Src);
-void ReverseAllocJob (BlockList *Blocks);
 
 #endif // ARCHIVE_H

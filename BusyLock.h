@@ -49,6 +49,14 @@ class BusyLock {
     void PostBusy () {
         Post (1);
     }
+    bool CheckIdle () {
+        unique_lock<mutex> lock(Mtx);
+        return !Busy;
+    }
+    bool CheckBusy () {
+        unique_lock<mutex> lock(Mtx);
+        return Busy;
+    }
 };
 
 #else

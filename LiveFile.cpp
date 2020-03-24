@@ -52,7 +52,7 @@ void ExtractChunkJob (const ChunkInfo *Chunk, const BlockList *ChunkBlocks, i64 
     string *SelData = &ChunkData;
     string DeCompressed;
     if (Chunk->CompFlag != CompFlagUnComp) {
-        Comp::DeCompress (Comp::CompFlag2CompType (Chunk->CompFlag, O), ChunkData, DeCompressed);
+        Comp::DeCompress (Chunk->CompFlag, ChunkData, DeCompressed);
         SelData = &DeCompressed;
     }
 
@@ -121,15 +121,10 @@ LiveFile::LiveFile (const FileListEntry &ListEntry
                 // get help on all but the final chunk
                 // avoid deadlock if NumThreads==1 (because this function uses a thread)
                 if (O.NumThreads > 1 && ChunkItr != (Chunks.end()-1)) {
-                    JobCtrl *Thr = ThreadPool.AllocThread();
-                    Thr->JobType                      = JobCtrl::ExtractChunk;
-                    Thr->ExtractChunkInfo.Chunk       = &Chunk;
-                    Thr->ExtractChunkInfo.ChunkBlocks = ChunkBlocks;
-                    Thr->ExtractChunkInfo.BlockIdx    = Chunk.ChunkIdx;
-                    Thr->ExtractChunkInfo.F           = F;
-                    Thr->ExtractChunkInfo.Lock        = Lock;
-                    Thr->ExtractChunkInfo.PrevLock    = PrevLock;
-                    Thr->Go();
+                    function <void()> Task = [=]() {
+                        ExtractChunkJob (&Chunk, ChunkBlocks, Chunk.ChunkIdx, F, Lock, PrevLock);
+                    };
+                    ThreadPool.Execute (Task);
                 } else {
                     ExtractChunkJob (&Chunk, ChunkBlocks, Chunk.ChunkIdx, F, Lock, PrevLock);
                 }
