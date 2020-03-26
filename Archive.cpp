@@ -60,7 +60,7 @@ FileListEntry Archive::ParseListLine (const string &ListLine, u64 LineNo) {
     // separate fields of rhs
     vecstr RHSToks = SplitStr (FirstCut[1], " ");
     for (auto &RHSTok : RHSToks) {
-        vecstr Toks = SplitStr (RHSTok, ":");
+        vecstr Toks = SplitStr (RHSTok, ">");
         string &Name = Toks[0];
         string &Val  = Toks[1];
              if (Name == "mode" ) Res.Stats.st_mode =               strtoull (Val.c_str(), NULL, 16);
@@ -72,6 +72,7 @@ FileListEntry Archive::ParseListLine (const string &ListLine, u64 LineNo) {
                                   Res.FInfoIdx      =               strtoull (Val.c_str(), NULL, 10);
                                   Res.CompFlag      =               Name[0];
                                   }
+        else if (Name == "acl")  Res.Acl            =                         Val.c_str();
         else
             THROW_PBEXCEPTION_FMT ("Illegal entry in %s:%llu : %s", ListPath.c_str(), LineNo, RHSTok.c_str());
     }
@@ -79,7 +80,7 @@ FileListEntry Archive::ParseListLine (const string &ListLine, u64 LineNo) {
     // parse optional third field
     // only slink
     if (FirstCut.size() == 3) {
-        if (FirstCut[2].substr(0,6) != "slink:")
+        if (FirstCut[2].substr(0,6) != "slink>")
             THROW_PBEXCEPTION_FMT ("Illegal entry in %s:%llu : %s", ListPath.c_str(), LineNo, FirstCut[2].c_str());
         Res.LinkTarget = FirstCut[2].substr(6);
     }
@@ -198,9 +199,10 @@ fprintf (stderr, "file extract complete\n");
 
     // handle deferred modification times
     for (auto& DirAttrib : DirAttribs) {
-        SetOwn     (DirAttrib.Name, DirAttrib.Uid, DirAttrib.Gid );
-        SetMode    (DirAttrib.Name, DirAttrib.Mode               );
-        SetModTime (DirAttrib.Name, NsToTimeSpec(DirAttrib.MTime));
+        SetOwn      (DirAttrib.Name, DirAttrib.Uid, DirAttrib.Gid );
+        SetMode     (DirAttrib.Name, DirAttrib.Mode);
+        SetFileAcls (DirAttrib.Name, DirAttrib.Acl);
+        SetModTime  (DirAttrib.Name, NsToTimeSpec(DirAttrib.MTime));
     }
 fprintf (stderr, "dir attribs complete\n");
 
@@ -286,15 +288,17 @@ ArchiveCreate::~ArchiveCreate () {
 void ArchiveCreate::PushListEntry (const FileListEntry &ListEntry) {
     stringstream SListLine;
     SListLine <<                                   ListEntry.Name           << ListRecSep;
-    SListLine << "mode:"  << hex <<                ListEntry.Stats.st_mode  << " ";
-    SListLine << "uid:"   << hex <<                ListEntry.Stats.st_uid   << " ";
-    SListLine << "gid:"   << hex <<                ListEntry.Stats.st_gid   << " ";
-    SListLine << "size:"  << dec <<                ListEntry.Stats.st_size  << " "; // note: decimal
-    SListLine << "mtime:" << hex << TimeSpec_ToNs (ListEntry.Stats.st_mtim)       ;
+    SListLine << "mode>"  << hex <<                ListEntry.Stats.st_mode  << " ";
+    SListLine << "uid>"   << hex <<                ListEntry.Stats.st_uid   << " ";
+    SListLine << "gid>"   << hex <<                ListEntry.Stats.st_gid   << " ";
+    SListLine << "size>"  << dec <<                ListEntry.Stats.st_size  << " "; // note: decimal
+    SListLine << "mtime>" << hex << TimeSpec_ToNs (ListEntry.Stats.st_mtim)       ;
+    if (ListEntry.Acl.size())
+        SListLine << " acl>" << ListEntry.Acl;
     if (ListEntry.FInfoIdx != INT64_MIN)
-        SListLine << " " << ListEntry.CompFlag << ":" << dec << ListEntry.FInfoIdx;
+        SListLine << " " << ListEntry.CompFlag << ">" << dec << ListEntry.FInfoIdx;
     if (S_ISLNK(ListEntry.Stats.st_mode))
-        SListLine << ListRecSep << "slink:" << ListEntry.LinkTarget;
+        SListLine << ListRecSep << "slink>" << ListEntry.LinkTarget;
     SListLine << endl;
 
     // prevent corruption when multiple threads are creating file entries
@@ -566,6 +570,9 @@ void ArchFileCreate::CreateJob (bool KeepAF) {
 
         Arch->ZeroLenIdxMtx.unlock();
     }
+
+    // add acl to finfo
+    ListEntry.Acl = GetFileAcls (Name);
 
     // update file list
     Arch->PushListEntry (ListEntry);

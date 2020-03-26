@@ -285,7 +285,7 @@ void Utils::CreateSocket (const string &Name) {
 
 void Utils::SetMode (const string &Name, mode_t Mode) {
     if (chmod (Name.c_str(), Mode))
-        THROW_PBEXCEPTION_IO ("Can't set dir/file directory (%s) mode to %o", Name.c_str(), Mode);
+        fprintf (stderr, "Can't set dir/file directory (%s) mode to %o: %s\n", Name.c_str(), Mode, strerror(errno));
 }
 
 void Utils::SetOwn (const string &Name, u32 Uid, u32 Gid, bool IsSLink) {
@@ -295,8 +295,8 @@ void Utils::SetOwn (const string &Name, u32 Uid, u32 Gid, bool IsSLink) {
     else
         res =  chown (Name.c_str(), Uid, Gid);
     if (res)
-        THROW_PBEXCEPTION_IO ("Can't set dir/file (%s) owner/group to (%d/%d)",
-                              Name.c_str(), Uid, Gid);
+        fprintf (stderr, "Can't set dir/file (%s) owner/group to (%d/%d): %s\n",
+                              Name.c_str(), Uid, Gid, strerror(errno));
 }
 
 void Utils::SetModTime (const string &Name, timespec Time) {
@@ -324,13 +324,6 @@ string Utils::GetFileAcl (const string &Name, u32 Type) {
         // get entry type
         acl_tag_t tag;
         acl_get_tag_type(Entry, &tag);
-
-        // ignore base permissions
-        if ( tag == ACL_USER_OBJ
-           ||tag == ACL_GROUP_OBJ
-           ||tag == ACL_OTHER
-           )
-            continue;
 
         acl_entry_t NewEntry;
         if (acl_create_entry (&NewACL, &NewEntry) < 0)
@@ -362,13 +355,41 @@ string Utils::GetFileAcl (const string &Name, u32 Type) {
 string Utils::GetFileAcls (const string &Name) {
     vecstr ACLs;
     for (int Type : {ACL_TYPE_ACCESS, ACL_TYPE_DEFAULT}) {
-        string ACLHex = GetFileAcl (Name, Type);
-        if (ACLHex.size())
-            ACLs.push_back(ACLHex);
+        string ACLStr = GetFileAcl (Name, Type);
+        if (ACLStr.size())
+            ACLs.push_back(ACLStr);
     }
 
     if (ACLs.size())
-        return string("acl:") + JoinStrs (ACLs, ";");
+        return JoinStrs (ACLs, ";");
 
     return "";
+}
+
+void Utils::SetFileAcls (const string &Name, const string &Acls) {
+    if (!Acls.size())
+        return;
+
+    // break acl spec into access and default portions
+    for (auto Acl : SplitStr (Acls, ";")) {
+        // split off type specifier
+        vecstr Parts = SplitStr (Acl, "|");
+        if (Parts.size() != 2)
+            THROW_PBEXCEPTION_FMT ("Illegal ACL format: %s\n", Acl.c_str());
+        u32 Type;
+        if (Parts[0] == "A")
+            Type = ACL_TYPE_ACCESS;
+        else if (Parts[0] == "D")
+            Type = ACL_TYPE_DEFAULT;
+        else
+            THROW_PBEXCEPTION_FMT ("Illegal ACL format: %s\n", Acl.c_str());
+
+        // set the file acl
+        acl_t acl = acl_from_text (Parts[1].c_str());
+        if (!acl)
+            THROW_PBEXCEPTION_FMT ("Can't parse acl text: %s: %s", Parts[1].c_str(), strerror(errno));
+        if (acl_set_file (Name.c_str(), Type, acl))
+            fprintf (stderr, "Can't set acl for file: %s: %s\n", Name.c_str(), strerror(errno));
+        acl_free (acl);
+    }
 }

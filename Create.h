@@ -20,7 +20,7 @@ class Create {
      Create ();
     ~Create ();
     void DoCreate ();
-    void DoCreate (const string &Dir);
+    void DoCreate (const string &Dir, bool Recurse = 1);
 };
 
 #endif // CREATE_H

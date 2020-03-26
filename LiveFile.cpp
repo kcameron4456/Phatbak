@@ -154,6 +154,7 @@ LiveFile::LiveFile (const FileListEntry &ListEntry
             DirAttrib.Gid   = Stats.st_gid;
             DirAttrib.Mode  = Stats.st_mode;
             DirAttrib.MTime = TimeSpec_ToNs(Stats.st_mtim);
+            DirAttrib.Acl   = ListEntry.Acl;
 
             DirAttribsMtx->lock();
 
@@ -167,6 +168,9 @@ LiveFile::LiveFile (const FileListEntry &ListEntry
             // set mode
             if (!IsSLink())
                 SetMode (Name, Stats.st_mode);
+
+            // set access control list
+            SetFileAcls (Name, ListEntry.Acl);
 
             // set time
             SetModTime (Name, Stats.st_mtim);

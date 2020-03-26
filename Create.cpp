@@ -3,11 +3,13 @@
 #include "Logging.h"
 #include "Utils.h"
 #include "ThreadPool.h"
+using namespace Utils;
 
 #include <string>
 #include <vector>
 #include <filesystem>
 #include <iostream>
+#include <algorithm>
 using namespace std;
 namespace fs = std::filesystem;
 
@@ -37,9 +39,35 @@ Create::~Create () {
 }
 
 void Create::DoCreate () {
+    // find unique roots of file args so we can archive them with
+    // proper attributes
+    map <string, bool> Roots;
+    for (auto &Dir : O.FileArgs) {
+        string CanDir = CanonizeFileName (Dir);
+        vecstr Parts = SplitStr (CanDir, "/");
+        Parts.pop_back();
+        vecstr Root;
+        for (auto &Part : Parts) {
+            if (!Part.size())
+                continue;
+            Root.push_back(Part);
+            Roots [string ("/") + JoinStrs (Root, "/")] = 1;
+        }
+    }
+
+    // sort the roots to archive them in top down order
+    vecstr Sorted;
+    for (auto Itr : Roots)
+        Sorted.push_back (Itr.first);
+    sort (Sorted.begin(), Sorted.end());
+
+    // do the archive creation
+    for (auto Dir : Sorted)
+        DoCreate (Dir, 0);
+
     // do the archive creation
     for (auto Dir : O.FileArgs)
-        DoCreate (Utils::CanonizeFileName (Dir));
+        DoCreate (CanonizeFileName(Dir));
 
     // wait for threads to complete
     ThreadPool.WaitIdle();
@@ -47,7 +75,7 @@ void Create::DoCreate () {
     Repo->Finish(O.ArchDirName);
 }
 
-void Create::DoCreate (const string &Name) {
+void Create::DoCreate (const string &Name, bool Recurse) {
     if (O.ShowFiles)
         cout << Name << endl;
 
@@ -80,6 +108,7 @@ void Create::DoCreate (const string &Name) {
     AF->Create(KeepAF);
 
     // create sub dirs/files
-    for (auto &Sub : Subs)
-        DoCreate (Sub);
+    if (Recurse)
+        for (auto &Sub : Subs)
+            DoCreate (Sub);
 }

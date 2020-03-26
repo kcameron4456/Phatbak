@@ -36,6 +36,7 @@ class FileListEntry {
     string      LinkTarget;
     i64         FInfoIdx  ;
     u64         LineNo    ;
+    string      Acl       ;
 
      FileListEntry() {}
     ~FileListEntry() {}
@@ -69,6 +70,7 @@ class DirAttribRec {
     u32      Gid;
     mode_t   Mode;
     u64      MTime;
+    string   Acl;
 };
 
 #endif // TYPES_H

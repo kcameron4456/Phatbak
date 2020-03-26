@@ -100,5 +100,8 @@ namespace Utils {
 
     // get both types of file acls
     string GetFileAcls (const string &Name);
+
+    // set file acls from acrhived text string version
+    void SetFileAcls (const string &Name, const string &Acls);
 }
 #endif // UTILS_H
