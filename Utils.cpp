@@ -333,8 +333,11 @@ string Utils::GetFileAcl (const string &Name, u32 Type) {
     }
 
     // if no acls remain, we're done
-    if (acl_entries(NewACL) <= 0)
+    if (acl_entries(NewACL) <= 0) {
+        acl_free (Acl);
+        acl_free (NewACL);
         return "";
+    }
 
     // convert to short form text
     char *AclText = acl_to_any_text (NewACL, NULL, ',', TEXT_ABBREVIATE | TEXT_NUMERIC_IDS);

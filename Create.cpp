@@ -39,8 +39,8 @@ Create::~Create () {
 }
 
 void Create::DoCreate () {
-    // find unique roots of file args so we can archive them with
-    // proper attributes
+    // find unique roots of file args so we can
+    // archive them with proper attributes
     map <string, bool> Roots;
     for (auto &Dir : O.FileArgs) {
         string CanDir = CanonizeFileName (Dir);
@@ -61,16 +61,20 @@ void Create::DoCreate () {
         Sorted.push_back (Itr.first);
     sort (Sorted.begin(), Sorted.end());
 
-    // do the archive creation
+    // archive the root dirs
     for (auto Dir : Sorted)
         DoCreate (Dir, 0);
 
-    // do the archive creation
+    // do the user-specified dirs
     for (auto Dir : O.FileArgs)
         DoCreate (CanonizeFileName(Dir));
 
     // wait for threads to complete
     ThreadPool.WaitIdle();
+
+    // free resources
+    for (auto AF : KeptAFs)
+        delete AF;
 
     Repo->Finish(O.ArchDirName);
 }
@@ -106,6 +110,10 @@ void Create::DoCreate (const string &Name, bool Recurse) {
 
     // create the archived file
     AF->Create(KeepAF);
+
+    // remember kept arch files for deletion when we're done
+    if (KeepAF)
+        KeptAFs.push_back(AF);
 
     // create sub dirs/files
     if (Recurse)

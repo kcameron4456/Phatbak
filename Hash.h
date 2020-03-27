@@ -27,6 +27,7 @@ class Hash {
 
     public:
     Hash (eHashType T);
+    ~Hash ();
     void   Update  (const char *Buf, int BufSize);
     string GetHash ();
     string HashStr (const string &Str);

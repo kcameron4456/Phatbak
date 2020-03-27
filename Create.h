@@ -16,6 +16,7 @@ class Create {
     ArchiveCreate  *Arch;      // information about current archive
     ArchiveBase    *ArchBase;  // information about base archive
     map <uint32_t, map <uint64_t, ArchFileCreate*>> Inodes; // archive info for each inode of each block device
+    vector <ArchFileCreate*> KeptAFs; // to facilitate resource free-up
 
      Create ();
     ~Create ();

@@ -595,13 +595,6 @@ void ArchFileCreate::CreateLink (ArchFileCreate *Prev) {
     // wait for processing of original file to complete
     Prev->Mtx.lock();
 
-    // consume the base file entry 
-    if (Arch->ArchBase) {
-        Arch->ArchBase->FileMapMtx.lock();
-        Arch->ArchBase->FileMap.erase(Name);
-        Arch->ArchBase->FileMapMtx.unlock();
-    }
-
     ListEntry      = Prev->ListEntry;
     ListEntry.Name = Name;
     Arch->PushListEntry (ListEntry);

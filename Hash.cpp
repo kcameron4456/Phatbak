@@ -9,7 +9,11 @@ Hash::Hash (eHashType T) {
     if (T >= HashType_Null)
         THROW_PBEXCEPTION ("Unrecognized hash type: %d", T);
     Hasher = mhash_init (MHashTypes [T]);
+    assert (Hasher != NULL);
     HashSize = mhash_get_block_size(MHashTypes [T]);
+}
+
+Hash::~Hash () {
 }
 
 void Hash::Update (const char *Buf, int BufSize) {
@@ -17,7 +21,7 @@ void Hash::Update (const char *Buf, int BufSize) {
 }
 
 string Hash::GetHash () {
-    unsigned char *HashBin = (unsigned char *)mhash_end (Hasher);
+    unsigned char *HashBin = (unsigned char *)mhash_end_m (Hasher, (void * (*)(unsigned int)) malloc);
     string HashHex;
     // TBD: do more than one byte at a time
     for (int i = 0; i < HashSize; i++) {
@@ -25,6 +29,7 @@ string Hash::GetHash () {
         snprintf (Hex, 3, "%02x", HashBin[i]);
         HashHex.append(Hex);
     }
+    free (HashBin);
     return HashHex;
 }
 
