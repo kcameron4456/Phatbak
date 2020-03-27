@@ -119,18 +119,19 @@ JobCtrl * ThreadPool_t::AllocThread (bool Wait) {
     CV.wait (dl, [this, Wait] {
                         return !Avail.empty()
                             || !Wait
-                            || (BusyLocksWaiting + AllocWaiting) >= All.size()
+                            || (BusyLocksWaiting + AllocWaiting + 1) >= All.size()
                             ;
                        });
 
     JobCtrl *Thr = NULL;
     if (!Avail.empty()) {
         // grab a thread
-        JobCtrl *Thr = Avail.back();
+        Thr = Avail.back();
         Avail.pop_back();
-
-        AllocWaiting -= Wait;
     }
+
+    AllocWaiting -= Wait;
+    CV.notify_all();
 
     return Thr;
 }
