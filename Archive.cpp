@@ -201,7 +201,7 @@ fprintf (stderr, "file extract complete\n");
     for (auto& DirAttrib : DirAttribs) {
         SetOwn      (DirAttrib.Name, DirAttrib.Uid, DirAttrib.Gid );
         SetMode     (DirAttrib.Name, DirAttrib.Mode);
-        SetFileAcls (DirAttrib.Name, DirAttrib.Acl);
+        //SetFileAcls (DirAttrib.Name, DirAttrib.Acl);
         SetModTime  (DirAttrib.Name, NsToTimeSpec(DirAttrib.MTime));
     }
 fprintf (stderr, "dir attribs complete\n");

@@ -7,7 +7,26 @@ using namespace std;
 
 extern volatile int StopThreads;
 
-#if 1
+// these are used to detect when all threads are waiting
+// we can use this to break deadlocks
+extern unsigned           BusyLocksWaiting; // number of BusyLocks currently in wait state
+extern recursive_mutex    BusyLocksMtx;     // mutex to provide atomic update and test of above
+extern condition_variable BusyLocksCV;      // used to inform threadpool when BusyLocksWaiting changes
+
+#define BUSYLOCK_WINC {      \
+    BusyLocksMtx.lock();     \
+    BusyLocksWaiting ++;     \
+    BusyLocksCV.notify_all();\
+    BusyLocksMtx.unlock();   \
+}
+
+#define BUSYLOCK_WDEC {      \
+    BusyLocksMtx.lock();     \
+    BusyLocksWaiting --;     \
+    BusyLocksCV.notify_all();\
+    BusyLocksMtx.unlock();   \
+}
+
 class BusyLock {
     bool               Busy;
     mutex              Mtx;
@@ -15,25 +34,35 @@ class BusyLock {
 
     public:
     BusyLock (bool b = false) {
-        Busy = b;
+        Busy    = b;
+    }
+    ~BusyLock () {
     }
     void WaitIdle () {
         unique_lock<mutex> lock(Mtx);
+        BUSYLOCK_WINC
         CV.wait (lock, [this]{return !Busy || StopThreads;});
+        BUSYLOCK_WDEC
     }
     void WaitIdleAndPost () {
         unique_lock<mutex> lock(Mtx);
+        BUSYLOCK_WINC
         CV.wait (lock, [this]{return !Busy || StopThreads;});
         Busy = 1;
+        BUSYLOCK_WDEC
     }
     void WaitBusy () {
         unique_lock<mutex> lock(Mtx);
+        BUSYLOCK_WINC
         CV.wait (lock, [this]{return Busy || StopThreads;});
+        BUSYLOCK_WDEC
     }
     void WaitBusyAndPost () {
         unique_lock<mutex> lock(Mtx);
+        BUSYLOCK_WINC
         CV.wait (lock, [this]{return Busy || StopThreads;});
         Busy = 0;
+        BUSYLOCK_WDEC
     }
     void Notify () {
         CV.notify_all();
@@ -58,52 +87,5 @@ class BusyLock {
         return Busy;
     }
 };
-
-#else
-class BusyLock {
-    i32                Count;
-    mutex              Mtx;
-    condition_variable CV;
-
-    public:
-    BusyLock (i32 c = 0) {
-        Count = c;
-    }
-    void WaitIdle () {
-        unique_lock<mutex> lock(Mtx);
-        CV.wait (lock, [this]{return Count==0 || StopThreads;});
-    }
-    void WaitIdleAndPost () {
-        unique_lock<mutex> lock(Mtx);
-        CV.wait (lock, [this]{return Count==0 || StopThreads;});
-        Count = 1;
-    }
-    void WaitBusy () {
-        unique_lock<mutex> lock(Mtx);
-        CV.wait (lock, [this]{return Count!=0 || StopThreads;});
-    }
-    void WaitBusyAndPost () {
-        unique_lock<mutex> lock(Mtx);
-        CV.wait (lock, [this]{return Count!=0 || StopThreads;});
-        Count--;
-    }
-    void Notify () {
-        CV.notify_all();
-    }
-    void Post (i32 D) {
-        unique_lock<mutex> lock(Mtx);
-        Count += D;
-        if (Count < 0)
-            Count = 0;
-        Notify ();
-    }
-    void PostIdle () {
-        Post (-1);
-    }
-    void PostBusy () {
-        Post (1);
-    }
-};
-#endif
 
 #endif // BUSYLOCK_H

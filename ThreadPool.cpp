@@ -8,6 +8,9 @@ ThreadPool_t ThreadPool;
 // when set, all threads will quit
 volatile int StopThreads = 0;
 
+// how many threads are allocated for the current call tree
+thread_local unsigned ThreadDepth = 0;
+
 // thread top level function
 void BackGroundWorker (JobCtrl *Job) {
     try {
@@ -17,10 +20,13 @@ void BackGroundWorker (JobCtrl *Job) {
             DBG ("Job #%d, Wait for busy\n", Job->Idx);
             Job->Busy.WaitBusy ();
             if (StopThreads) {
-                DBG ("Job #%d Abort\n", Job->Idx);
+                DBG ("Job #%d Stopping\n", Job->Idx);
                 Job->Busy.PostIdle();
                 break;
             }
+
+            // keep track of thread call depth
+            ThreadDepth = Job->ParentDepth + 1;
 
             // process the job
             DBG ("Job #%d, Starting\n", Job->Idx);
@@ -43,15 +49,16 @@ void BackGroundWorker (JobCtrl *Job) {
 // add n threads to the pool
 void ThreadPool_t::AddThreads (int N) {
     // get the mutex
-    unique_lock<mutex> lock(Mtx);
+    unique_lock<recursive_mutex> lock(Mtx);
 
     // create the threads
-    for (int i = N; i > 0; i--) {
-        JobCtrl *Job = new JobCtrl (i);
+    for (int i = 0; i < N; i++) {
+        int Idx = All.size()+1;
+        JobCtrl *Job = new JobCtrl (Idx);
         All  .push_back(Job);
         Avail.push_back(Job);
-        if (i < JobArraySize)
-            JobArray [i] = Job;
+        if (Idx < JobArraySize)
+            JobArray [Idx] = Job;
     }
 
     // tell any waiting threads
@@ -59,7 +66,7 @@ void ThreadPool_t::AddThreads (int N) {
 }
 
 void ThreadPool_t::WaitIdle () {
-    unique_lock<mutex> lock(Mtx);
+    unique_lock<recursive_mutex> lock(Mtx);
     CV.wait (lock, [this]{return All.size() == Avail.size();});
 }
 
@@ -75,15 +82,52 @@ void ThreadPool_t::JoinAll () {
     }
 }
 
+class DualLock {
+    recursive_mutex *lock1;
+    recursive_mutex *lock2;
+
+    public:
+    DualLock (recursive_mutex *l1, recursive_mutex *l2) {
+        lock1 = l1;
+        lock2 = l2;
+        lock();
+    }
+    void lock () {
+        std::lock (*lock1, *lock2);
+    }
+    void unlock () {
+        lock1->unlock();
+        lock2->unlock();
+    }
+};
+
 // allocate a thread to be used for a job
 JobCtrl * ThreadPool_t::AllocThread (bool Wait) {
-    // get the mutex
-    unique_lock<mutex> lock(Mtx);
+    // get both mutex's
+    DualLock dl (&Mtx, &BusyLocksMtx);
+
+    // make sure we release the locks when we exit
+    lock_guard <recursive_mutex> lock1 (Mtx         , std::adopt_lock);
+    lock_guard <recursive_mutex> lock2 (BusyLocksMtx, std::adopt_lock);
 
     // wait for available thread
-    CV.wait (lock, [this, Wait]{return !Avail.empty() || !Wait;});
-    if (Avail.empty())
-        return NULL;
+    // abort wait if caller doesn't want to wait
+    // abort wait if all threads are waiting on busy lock
+    CV.wait (dl, [this, Wait] {
+                        return !Avail.empty()
+                            || !Wait
+                            || (BusyLocksWaiting + 1) >= All.size()
+                            ;
+                       });
+    if (Avail.empty()) {
+        if (!Wait) {
+            return NULL;
+        } else {
+            // create a new thread to avoid deadlock
+fprintf (stderr, "Adding an extra thread\n");
+            AddThreads (1);
+        }
+    }
 
     // grab a thread
     JobCtrl *rval = Avail.back();
@@ -95,7 +139,7 @@ JobCtrl * ThreadPool_t::AllocThread (bool Wait) {
 
 void ThreadPool_t::ReleaseThread (JobCtrl *Job) {
     // get the mutex
-    unique_lock<mutex> lock(Mtx);
+    unique_lock<recursive_mutex> lock(Mtx);
 
     // add the job to the queue
     Avail.push_back (Job);
@@ -110,10 +154,14 @@ void ThreadPool_t::Execute (function <void()> &Task, bool Wait) {
 
 void ThreadPool_t::Execute (function <void()> *Task, bool Wait) {
     JobCtrl *Thr = NULL;
+
     if (All.size())
+        // try to allocate a thread
         Thr = AllocThread(Wait);
+
     if (Thr) {
-        Thr->Task    = Task;
+        Thr->Task        = Task;
+        Thr->ParentDepth = ThreadDepth;
         Thr->Go();
     } else {
         (*Task)();

@@ -166,11 +166,12 @@ LiveFile::LiveFile (const FileListEntry &ListEntry
             SetOwn (Name, Stats.st_uid, Stats.st_gid, IsSLink());
 
             // set mode
-            if (!IsSLink())
+            if (!IsSLink()) {
                 SetMode (Name, Stats.st_mode);
 
-            // set access control list
-            SetFileAcls (Name, ListEntry.Acl);
+                // set access control list
+                //SetFileAcls (Name, ListEntry.Acl);
+            }
 
             // set time
             SetModTime (Name, Stats.st_mtim);

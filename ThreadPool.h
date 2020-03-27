@@ -12,6 +12,9 @@
 #include <functional>
 using namespace std;
 
+// how many threads are allocated for the current call tree
+extern thread_local unsigned ThreadDepth;
+
 // class to contain info needed to start a job on a waiting thread
 // one of these is owned by each worker
 class JobCtrl;
@@ -20,9 +23,10 @@ class JobCtrl {
     private:
 
     public:
-    int          Idx;  // sequential count to assist debug
-    thread      *Thr;  // pointer to thread control structure 
-    BusyLock     Busy; // tells worker when there's work to be done
+    int               Idx;         // sequential count to assist debug
+    thread           *Thr;         // pointer to thread control structure 
+    BusyLock          Busy;        // tells worker when there's work to be done
+    unsigned          ParentDepth; // thread call depth of requester
 
     // generic self-contained task
     function <void()> *Task;
@@ -49,13 +53,13 @@ class JobCtrl {
 // each element of the list represents a thread
 // which is available to start a new job
 class ThreadPool_t {
-    vector <JobCtrl *> All;   // list of all Worker threads
-    vector <JobCtrl *> Avail; // set of Worker threads which are ready to perform work
-    mutex              Mtx;   // mutex to control alloc/release
-    condition_variable CV;    // condition variable for alloc/release
+    vector <JobCtrl *>     All;   // list of all Worker threads
+    vector <JobCtrl *>     Avail; // set of Worker threads which are ready to perform work
+    recursive_mutex        Mtx;   // mutex to protect access to the all and avail queues
+    condition_variable_any CV;    // condition variable for alloc/release
 
-    // for debug with gdb
-    static const int JobArraySize = 100;
+    // for helping debug with gdb
+    static const int JobArraySize = 500;
     JobCtrl *JobArray [JobArraySize];
 
     public:
