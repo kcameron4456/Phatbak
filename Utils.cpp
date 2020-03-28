@@ -368,7 +368,6 @@ string Utils::GetFileAcl (const string &Name, u16 Perm, u32 Type) {
 }
 
 string Utils::GetFileAcls (const string &Name, u16 Perm) {
-    return "";
     vecstr ACLs;
     for (int Type : {ACL_TYPE_ACCESS, ACL_TYPE_DEFAULT}) {
         string ACLStr = GetFileAcl (Name, Perm, Type);
