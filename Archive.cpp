@@ -232,6 +232,82 @@ void ArchiveRead::DoList () {
     FL.close();
 }
 
+static void FindBlockFiles (const string &Dir, const string &TopDir, map <i64, bool> &BlockMap) {
+    vecstr SubDirs, SubFiles;
+    SlurpDir (Dir, SubDirs, SubFiles);
+    for (auto File: SubFiles) {
+        // check file name
+        if (File.find_first_not_of ("0123456789") != string::npos)
+            ERROR ("Unexpected file: %s\n", (Dir + "/" + File).c_str());
+        i64 BlockIdx = strtoll (File.c_str(), NULL, 10);
+        if (BlockMap.count (BlockIdx))
+            ERROR ("Block #%ld seen twice in %s\n", BlockIdx, TopDir.c_str());
+
+        // remember this block
+        BlockMap [BlockIdx] = 1;
+    }
+
+    // do subdirs
+    for (auto SubDir: SubDirs)
+        FindBlockFiles (Dir + "/" + SubDir, TopDir, BlockMap);
+}
+
+void ArchiveRead::DoTest () {
+    // find existing block files
+    map <i64, bool> FInfosMap, ChunksMap;
+    FindBlockFiles (FinfoDirPath, FinfoDirPath, FInfosMap);
+    FindBlockFiles (ChunkDirPath, ChunkDirPath, ChunksMap);
+
+    // create a list of files with first-order info
+    fstream FL = OpenReadStream (ListPath);
+    string Line;
+    u64 LineCount = 1;
+    while (getline (FL, Line)) {
+        FileListEntry ListEntry = ParseListLine (Line, LineCount);
+        if (ListEntry.FInfoIdx < 0)
+            continue;
+
+        if (!FInfosMap.count(ListEntry.FInfoIdx))
+            ERROR ("%s line:%lu points to non-existant FInfo block: %ld\n", ListPath.c_str(), ListEntry.LineNo, ListEntry.FInfoIdx);
+        FInfosMap.erase(ListEntry.FInfoIdx);
+
+        auto AF = new ArchFileRead (this, ListEntry);
+        for (auto Chunk : AF->Chunks) { 
+            if (!ChunksMap.count (Chunk.ChunkIdx))
+                ERROR ("FInfo Block #%ld points to non-existant Chunk block:%ld\n", ListEntry.FInfoIdx, Chunk.ChunkIdx);
+            ChunksMap.erase (Chunk.ChunkIdx);
+
+            // grab the chunk
+            string ChunkData;
+            ChunkBlocks->SlurpBlock (Chunk.ChunkIdx, ChunkData);
+
+            // handle decompress
+            string *SelData = &ChunkData;
+            string DeCompressed;
+            if (Chunk.CompFlag != CompFlagUnComp) {
+                Comp::DeCompress (Chunk.CompFlag, ChunkData, DeCompressed);
+                SelData = &DeCompressed;
+            }
+
+            // check hash
+            string ChunkDataHash = HashStr (O.HashType, *SelData);
+            if (ChunkDataHash != Chunk.Hash)
+                ERROR ("Hash mismatch on data chunk #%ld\n", Chunk.ChunkIdx);
+        }
+        delete AF;
+
+        LineCount ++;
+    }
+
+    // all finfo and chunk blocks should have been seen
+    for (auto Itr : FInfosMap)
+        ERROR ("Unused FInfo block found: %ld\n", Itr.first);
+    for (auto Itr : ChunksMap)
+        ERROR ("Unused Chunk block found: %ld\n", Itr.first);
+
+    FL.close();
+}
+
 //////////////////////////////////////////////////////////////////////
 ArchiveBase::ArchiveBase (RepoInfo *repo, const string &name) : ArchiveRead (repo, name) {
     // create a list of files with first-order info

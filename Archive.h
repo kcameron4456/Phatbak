@@ -69,6 +69,7 @@ class ArchiveRead : public Archive {
     void DoExtract    ();
     void DoExtractJob (const string &ListLine, u64 LineNo);
     void DoList       ();
+    void DoTest       ();
 };
 
 class ArchiveBase : public ArchiveRead {

@@ -33,6 +33,12 @@ int main (int argc, const char **argv) {
                 Repo->DoList();
             }
             delete Repo;
+        } else if (O.Operation == Opts::DoTest) {
+            auto Repo = new RepoInfo (O.RepoDirName);
+            auto Arch = new ArchiveRead (Repo, O.ArchDirName);
+            Arch->DoTest();
+            delete Arch;
+            delete Repo;
         }
     }
 
