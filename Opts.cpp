@@ -241,11 +241,23 @@ void Opts::ParseCmdLine (const int argc, const char *argv[]) {
     ArchDirName = Parts[1];
 
     // remaining args are file/dir names for create or extract
-    // default to cwd
-    if (argidx >= argc)
+    for (; argidx < argc; argidx++) {
+        string FileName = argv[argidx];
+
+        // strip trailing /
+        if (!FileName.size())
+            continue;
+        if (FileName[FileName.size()-1] == '/')
+            FileName.resize(FileName.size()-1);
+        if (!FileName.size())
+            FileName = "/";
+
+        FileArgs.push_back (FileName);
+    }
+
+    // default to cwd for create
+    if (!FileArgs.size() && Operation == DoCreate)
         FileArgs.push_back (".");
-    for (; argidx < argc; argidx++)
-        FileArgs.push_back (argv[argidx]);
 
     //Print();
 }
