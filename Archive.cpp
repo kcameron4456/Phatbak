@@ -203,7 +203,7 @@ fprintf (stderr, "file extract complete\n");
     for (auto& DirAttrib : DirAttribs) {
         SetOwn      (DirAttrib.Name, DirAttrib.Uid, DirAttrib.Gid );
         SetMode     (DirAttrib.Name, DirAttrib.Mode);
-        //SetFileAcls (DirAttrib.Name, DirAttrib.Acl);
+        SetFileAcls (DirAttrib.Name, DirAttrib.Mode, DirAttrib.Acl);
         SetModTime  (DirAttrib.Name, NsToTimeSpec(DirAttrib.MTime));
     }
 fprintf (stderr, "dir attribs complete\n");
@@ -572,7 +572,7 @@ void ArchFileCreate::Create (InodeInfo *Inode) {
     }
 
     // add acl to finfo
-    ListEntry.Acl = GetFileAcls (Name);
+    ListEntry.Acl = GetFileAcls (Name, LF->Mode());
 
     // update file list
     Arch->PushListEntry (ListEntry);

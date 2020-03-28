@@ -170,7 +170,7 @@ LiveFile::LiveFile (const FileListEntry &ListEntry
                 SetMode (Name, Stats.st_mode);
 
                 // set access control list
-                //SetFileAcls (Name, ListEntry.Acl);
+                SetFileAcls (Name, Stats.st_mode, ListEntry.Acl);
             }
 
             // set time

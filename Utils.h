@@ -96,12 +96,12 @@ namespace Utils {
     void SetModTime (const string &Name, timespec Time);
 
     // get file acls of one type
-    string GetFileAcl (const string &Name, u32 type);
+    string GetFileAcl (const string &Name, u16 Perm, u32 type);
 
     // get both types of file acls
-    string GetFileAcls (const string &Name);
+    string GetFileAcls (const string &Name, u16 Perm);
 
     // set file acls from acrhived text string version
-    void SetFileAcls (const string &Name, const string &Acls);
+    void SetFileAcls (const string &Name, u16 Perm, const string &Acls);
 }
 #endif // UTILS_H

@@ -306,7 +306,7 @@ void Utils::SetModTime (const string &Name, timespec Time) {
         THROW_PBEXCEPTION_IO ("Can't set mod time of %s", Name.c_str()); 
 }
 
-string Utils::GetFileAcl (const string &Name, u32 Type) {
+string Utils::GetFileAcl (const string &Name, u16 Perm, u32 Type) {
     // get file acl struture
     auto Acl = acl_get_file(Name.c_str(), Type);
     if (Acl == 0)
@@ -324,6 +324,18 @@ string Utils::GetFileAcl (const string &Name, u32 Type) {
         // get entry type
         acl_tag_t tag;
         acl_get_tag_type(Entry, &tag);
+
+        // compare base acl to normal permissions mask returned my lstat
+        if (Type == ACL_TYPE_ACCESS) {
+            // get permissions for this entry
+            acl_permset_t PermSet;
+            acl_get_permset (Entry, &PermSet);
+
+            // if base permission is the same as perm from lstat call, ignore this entry
+            if (tag == ACL_USER_OBJ  && (*(u8 *)PermSet & 7) == ((Perm >> 6) & 7)) continue;
+            if (tag == ACL_GROUP_OBJ && (*(u8 *)PermSet & 7) == ((Perm >> 3) & 7)) continue;
+            if (tag == ACL_OTHER     && (*(u8 *)PermSet & 7) == ((Perm >> 0) & 7)) continue;
+        }
 
         acl_entry_t NewEntry;
         if (acl_create_entry (&NewACL, &NewEntry) < 0)
@@ -355,10 +367,11 @@ string Utils::GetFileAcl (const string &Name, u32 Type) {
     return Result;
 }
 
-string Utils::GetFileAcls (const string &Name) {
+string Utils::GetFileAcls (const string &Name, u16 Perm) {
+    return "";
     vecstr ACLs;
     for (int Type : {ACL_TYPE_ACCESS, ACL_TYPE_DEFAULT}) {
-        string ACLStr = GetFileAcl (Name, Type);
+        string ACLStr = GetFileAcl (Name, Perm, Type);
         if (ACLStr.size())
             ACLs.push_back(ACLStr);
     }
@@ -369,9 +382,25 @@ string Utils::GetFileAcls (const string &Name) {
     return "";
 }
 
-void Utils::SetFileAcls (const string &Name, const string &Acls) {
+static bool             LookupInitted = 0;
+static mutex            LookupMtx;
+static map <u8, string> Lookup;
+void Utils::SetFileAcls (const string &Name, u16 Perm, const string &Acls) {
     if (!Acls.size())
         return;
+
+    // build lookup table for perm field to string
+    LookupMtx.lock();
+    if (!LookupInitted) {
+        for (u8 i = 0; i <= 7; i++) {
+            string Val = string (1, i&4 ? 'r' : '-') +
+                         string (1, i&2 ? 'w' : '-') +
+                         string (1, i&1 ? 'x' : '-');
+            Lookup [i] = Val;
+        }
+        LookupInitted = 1;
+    }
+    LookupMtx.unlock();
 
     // break acl spec into access and default portions
     for (auto Acl : SplitStr (Acls, ";")) {
@@ -386,11 +415,22 @@ void Utils::SetFileAcls (const string &Name, const string &Acls) {
             Type = ACL_TYPE_DEFAULT;
         else
             THROW_PBEXCEPTION_FMT ("Illegal ACL format: %s\n", Acl.c_str());
+        string AclShort = Parts[1];
 
+        // add base permissions, if needed
+        if (Type == ACL_TYPE_ACCESS) {
+            if (AclShort.find ("u::")==AclShort.npos) AclShort += ",u::" + Lookup [(Perm >> 6) & 7];
+            if (AclShort.find ("g::")==AclShort.npos) AclShort += ",g::" + Lookup [(Perm >> 3) & 7];
+            if (AclShort.find ("o::")==AclShort.npos) AclShort += ",o::" + Lookup [(Perm >> 0) & 7];
+        }
+
+//fprintf (stderr, "Name=%s Perm =%03o\n", Name.c_str(), Perm & 0777);
+//fprintf (stderr, "%c Type =%ld Parts[1]=%s\n", Parts[0][0], (long) Type, Parts[1].c_str());
+//fprintf (stderr, "%c Type =%ld AclShort=%s\n", Parts[0][0], (long) Type, AclShort.c_str());
         // set the file acl
-        acl_t acl = acl_from_text (Parts[1].c_str());
+        acl_t acl = acl_from_text (AclShort.c_str());
         if (!acl)
-            THROW_PBEXCEPTION_FMT ("Can't parse acl text: %s: %s", Parts[1].c_str(), strerror(errno));
+            THROW_PBEXCEPTION_FMT ("Can't parse acl text: %s: %s", AclShort.c_str(), strerror(errno));
         if (acl_set_file (Name.c_str(), Type, acl))
             fprintf (stderr, "Can't set acl for file: %s: %s\n", Name.c_str(), strerror(errno));
         acl_free (acl);
