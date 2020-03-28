@@ -133,6 +133,12 @@ void Create::DoCreate (const string &Name, bool Recurse) {
     if (Recurse)
         for (auto &Sub : Subs) {
             function <void()> Task = [=](){DoCreate (Sub);};
-            ThreadPool.Execute (Task);
+
+            // this severely slows everything down
+            // consumes too many threads, I guess
+            //ThreadPool.Execute (Task);
+
+            // just run it here
+            (Task)();
         }
 }
