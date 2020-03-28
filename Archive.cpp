@@ -136,6 +136,15 @@ void ArchiveRead::ParseOptions () {
 void ArchiveRead::DoExtractJob (const string &ListLine, u64 LineNo) {
     FileListEntry ListEntry = ParseListLine (ListLine, LineNo);
 
+    // filter against user-specified extraction list
+    if (O.FileArgs.size()) {
+        bool FileOk = false;
+        for (auto FileArg: O.FileArgs)
+            FileOk |= ListEntry.Name.find (FileArg, 0) == 0;
+        if (!FileOk)
+            return;
+    }
+
     // extract information about the archived file
     ArchFileRead *AF = new ArchFileRead (this, ListEntry);
 
