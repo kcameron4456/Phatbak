@@ -572,7 +572,8 @@ void ArchFileCreate::Create (InodeInfo *Inode) {
     }
 
     // add acl to finfo
-    ListEntry.Acl = GetFileAcls (Name, LF->Mode());
+    if (!LF->IsSLink())
+        ListEntry.Acl = GetFileAcls (Name, LF->Mode());
 
     // update file list
     Arch->PushListEntry (ListEntry);
