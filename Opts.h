@@ -39,7 +39,9 @@ class Opts {
     bool      DebugPrint;       // true output trace info for debug
 
     enum      {DoUndef  , DoCreate,
-               DoExtract, DoTest  } Operation; // what to do
+               DoExtract, DoTest,
+               DoList
+              } Operation; // what to do
 
     Opts ();
 

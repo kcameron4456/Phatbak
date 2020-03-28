@@ -203,6 +203,7 @@ void Opts::ParseCmdLine (const int argc, const char *argv[]) {
         PARSE_MinusFlg ("-c"                 , TESTOP, Operation  , DoCreate , )
         PARSE_MinusFlg ("-x"                 , TESTOP, Operation  , DoExtract, )
         PARSE_MinusFlg ("-t"                 , TESTOP, Operation  , DoTest   , )
+        PARSE_MinusFlg ("-l"                 , TESTOP, Operation  , DoList   , )
         PARSE_MinusFlg ("-v"                ,, ShowFiles  , 1,)
         PARSE_MinusFlg ("-D"                ,, ShowFiles=ArchDiag, 1, )
         PARSE_MinusVal ("-T"                ,"%d", &NumThreads,)
@@ -233,12 +234,15 @@ void Opts::ParseCmdLine (const int argc, const char *argv[]) {
     }
     string RepoArchName = argv[argidx++];
     vector <string> Parts = Utils::SplitStr (RepoArchName, "::");
-    if (Parts.size() != 2) {
+    if (!(Parts.size() == 2) &&
+        !(Parts.size() == 1 && Operation == DoList)
+       ) {
         printf ("Unrecognized Repo::Archive format: %s\n", RepoArchName.c_str());
         PrintHelp(1);
     }
     RepoDirName = Parts[0];
-    ArchDirName = Parts[1];
+    if (Parts.size() >= 2)
+        ArchDirName = Parts[1];
 
     // remaining args are file/dir names for create or extract
     for (; argidx < argc; argidx++) {

@@ -206,7 +206,6 @@ void ArchiveRead::DoExtract () {
 
     // wait for all jobs to finish
     ThreadPool.WaitIdle();
-fprintf (stderr, "file extract complete\n");
 
     // handle deferred modification times
     for (auto& DirAttrib : DirAttribs) {
@@ -215,9 +214,22 @@ fprintf (stderr, "file extract complete\n");
         SetFileAcls (DirAttrib.Name, DirAttrib.Mode, DirAttrib.Acl);
         SetModTime  (DirAttrib.Name, NsToTimeSpec(DirAttrib.MTime));
     }
-fprintf (stderr, "dir attribs complete\n");
 
     ListFile.close();
+}
+
+void ArchiveRead::DoList () {
+    // create a list of files with first-order info
+    fstream FL = OpenReadStream (ListPath);
+    string Line;
+    u64 LineCount = 1;
+    while (getline (FL, Line)) {
+        FileListEntry FLE = ParseListLine (Line, LineCount);
+        printf ("%s\n", FLE.Name.c_str());
+
+        LineCount ++;
+    }
+    FL.close();
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -232,7 +244,6 @@ ArchiveBase::ArchiveBase (RepoInfo *repo, const string &name) : ArchiveRead (rep
         LineCount ++;
     }
     FL.close();
-fprintf (stderr, "ArchiveBase::ArchiveBase listed %ld files\n", (long)FileMap.size());
 }
 
 ArchiveBase::~ArchiveBase () {

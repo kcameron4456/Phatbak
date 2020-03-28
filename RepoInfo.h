@@ -14,6 +14,7 @@ class RepoInfo {
 
     RepoInfo (const string &name);
     void Finish (const string &ArchName);
+    void DoList ();
 };
 
 #endif // REPOINFO_H

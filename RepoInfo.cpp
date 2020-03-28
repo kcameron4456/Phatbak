@@ -1,5 +1,6 @@
 #include "RepoInfo.h"
 #include "Logging.h"
+#include "Utils.h"
 
 #include <filesystem>
 #include <string>
@@ -32,10 +33,18 @@ RepoInfo::RepoInfo (const string &name) {
 }
 
 void RepoInfo::Finish (const string &ArchName) {
-    string LinkName = Name + "/LatestArchive";
-    error_code ec;
-    fs::remove                   (          LinkName, ec);
-    fs::create_directory_symlink (ArchName, LinkName, ec);
-    if (ec)
-        THROW_PBEXCEPTION_IO ("Can't create symlink: %s", LinkName.c_str());
+    //string LinkName = Name + "/LatestArchive";
+    //error_code ec;
+    //fs::remove                   (          LinkName, ec);
+    //fs::create_directory_symlink (ArchName, LinkName, ec);
+    //if (ec)
+    //    THROW_PBEXCEPTION_IO ("Can't create symlink: %s", LinkName.c_str());
+}
+
+void RepoInfo::DoList () {
+    vecstr SubDirs, SubFiles;
+    Utils::SlurpDir (Name, SubDirs, SubFiles);
+    for (auto SubDir : SubDirs)
+        if (fs::exists (Name + "/" + SubDir + "/" + PHATBAK_ARCH_ID))
+            printf ("%s::%s\n", Name.c_str(), SubDir.c_str());
 }

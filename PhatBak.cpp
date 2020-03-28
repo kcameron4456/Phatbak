@@ -23,6 +23,16 @@ int main (int argc, const char **argv) {
             Extract *E = new Extract;
             E->DoExtract ();
             delete E;
+        } else if (O.Operation == Opts::DoList) {
+            auto Repo = new RepoInfo (O.RepoDirName);
+            if (O.ArchDirName.size()) {
+                auto Arch = new ArchiveRead (Repo, O.ArchDirName);
+                Arch->DoList();
+                delete Arch;
+            } else {
+                Repo->DoList();
+            }
+            delete Repo;
         }
     }
 
