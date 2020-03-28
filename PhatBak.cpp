@@ -39,6 +39,14 @@ int main (int argc, const char **argv) {
             Arch->DoTest();
             delete Arch;
             delete Repo;
+        } else if (O.Operation == Opts::DoCompare) {
+            auto Repo = new RepoInfo (O.RepoDirName);
+            auto Arch = new ArchiveRead (Repo, O.ArchDirName);
+            Arch->DoCompare();
+            delete Arch;
+            delete Repo;
+        } else {
+            THROW_PBEXCEPTION ("Operation %d not supported", O.Operation);
         }
     }
 

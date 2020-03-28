@@ -40,7 +40,7 @@ class Opts {
 
     enum      {DoUndef  , DoCreate,
                DoExtract, DoTest,
-               DoList
+               DoList   , DoCompare,
               } Operation; // what to do
 
     Opts ();
@@ -52,6 +52,8 @@ class Opts {
                Operation == DoCreate  ? "DoCreate"  :
                Operation == DoExtract ? "DoExtract" :
                Operation == DoTest    ? "DoTest"    :
+               Operation == DoList    ? "DoList"    :
+               Operation == DoCompare ? "DoCompare" :
                                         "Illegal"   ;
     }
 

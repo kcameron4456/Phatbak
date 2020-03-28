@@ -41,6 +41,10 @@ extern recursive_mutex DBG_Mutex;
 #define DBGDTOR
 #endif
 
+#define WARN(...) {                            \
+    fprintf (stderr, "Warning: " __VA_ARGS__); \
+}
+
 #define ERROR(...) {                         \
     fprintf (stderr, "Error: " __VA_ARGS__); \
     exit (1);                                \

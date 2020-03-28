@@ -258,12 +258,14 @@ void ArchiveRead::DoTest () {
     FindBlockFiles (FinfoDirPath, FinfoDirPath, FInfosMap);
     FindBlockFiles (ChunkDirPath, ChunkDirPath, ChunksMap);
 
-    // create a list of files with first-order info
+    // test all files in the archive
     fstream FL = OpenReadStream (ListPath);
     string Line;
     u64 LineCount = 1;
     while (getline (FL, Line)) {
         FileListEntry ListEntry = ParseListLine (Line, LineCount);
+        if (O.ShowFiles)
+            printf ("%s\n", ListEntry.Name.c_str());
         if (ListEntry.FInfoIdx < 0)
             continue;
 
@@ -306,6 +308,71 @@ void ArchiveRead::DoTest () {
         ERROR ("Unused Chunk block found: %ld\n", Itr.first);
 
     FL.close();
+}
+
+void ArchiveRead::DoCompare () {
+    // compare all files in the archive
+    fstream FL = OpenReadStream (ListPath);
+    string Line;
+    u64 LineCount = 1;
+    while (getline (FL, Line)) {
+        FileListEntry ListEntry = ParseListLine (Line, LineCount);
+        if (O.ShowFiles)
+            printf ("%s\n", ListEntry.Name.c_str());
+
+        // open the file on disk
+        LiveFile *LF = new LiveFile (ListEntry.Name);
+
+        // compare attibutes
+        if (ListEntry.Stats.st_mode != LF->Stats.st_mode)
+            WARN ("Archived mode (%o) doesn't match (%o) for file: %s\n", ListEntry.Stats.st_mode, LF->Stats.st_mode, ListEntry.Name.c_str());
+        if (!TimeSpecsEqual (ListEntry.Stats.st_mtim, LF->Stats.st_mtim))
+            WARN ("Archived modification time (%s) doesn't match (%s) for file: %s\n",
+                  TimeSpec_ToText(ListEntry.Stats.st_mtim).c_str(), TimeSpec_ToText (LF->Stats.st_mtim).c_str(), ListEntry.Name.c_str());
+
+        // compare contents
+        if (ListEntry.Stats.st_size == LF->Stats.st_size) {
+            if (LF->IsFile()) {
+                auto AF = new ArchFileRead (this, ListEntry);
+                LF->OpenRead();
+                for (auto Chunk : AF->Chunks) { 
+                    // grab the chunk
+                    string ChunkData;
+                    ChunkBlocks->SlurpBlock (Chunk.ChunkIdx, ChunkData);
+
+                    // handle decompress
+                    string *SelData = &ChunkData;
+                    string DeCompressed;
+                    if (Chunk.CompFlag != CompFlagUnComp) {
+                        Comp::DeCompress (Chunk.CompFlag, ChunkData, DeCompressed);
+                        SelData = &DeCompressed;
+                    }
+
+                    // check hash
+                    string ChunkDataHash = HashStr (O.HashType, *SelData);
+                    if (ChunkDataHash != Chunk.Hash)
+                        WARN ("Hash mismatch on data chunk #%ld\n", Chunk.ChunkIdx);
+
+                    // compare data
+                    string LFChunkData;
+                    if (!LF->ReadChunk (LFChunkData)) {
+                        WARN ("Unexpected end of read data from: %s\n", ListEntry.Name.c_str());
+                        break;
+                    }
+                    if (*SelData != LFChunkData) {
+                        WARN ("Contents of archived file don't match: %s\n", ListEntry.Name.c_str());
+                        break;
+                    }
+                }
+                LF->Close();
+                delete AF;
+            }
+        } else {
+            WARN ("Archived size (%ld) doesn't match (%ld) for file: %s\n", ListEntry.Stats.st_size, LF->Stats.st_size, ListEntry.Name.c_str());
+        }
+
+        delete LF;
+    };
 }
 
 //////////////////////////////////////////////////////////////////////
