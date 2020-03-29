@@ -15,14 +15,14 @@
 using namespace std;
 
 // Structure to hold option values
-typedef vector<string> StrList_t;
 class Opts {
     public:
     int       VersionMajor;     // tartar program version
     int       VersionMinor;     // tartar program version
     string    CmdLine;          // Command line used to invoke tartar
     time_t    StartTime;        // Time this program started
-    StrList_t FileArgs;         // List of file names to be archived or extracted
+    vecstr    FileArgs;         // List of file names to be archived or extracted
+    string    CWD;              // Current working dir (maybe needed to give context to FileArgs)
     string    RepoDirName;      // Repository dir for archives
     string    ArchDirName;      // Archive directory withing the repo
     int       BlockNumModulus;  // Amount by which divide block indices to create block levels

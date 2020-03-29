@@ -20,16 +20,17 @@
 
 using namespace std;
 
+extern recursive_mutex Logging_Mutex;
+
 #ifdef DBGMSG
-extern recursive_mutex DBG_Mutex;
 #define DBG(...) {if (O.DebugPrint) { \
                   unsigned long nowns = chrono::duration_cast<chrono::nanoseconds> \
                                         (chrono::system_clock::now().time_since_epoch()).count(); \
-                  DBG_Mutex.lock(); \
+                  Logging_Mutex.lock(); \
                   fprintf (stderr, "%llu: ", nowns % 100000000000000ULL); \
                   fprintf (stderr, __VA_ARGS__); \
                   fflush  (stderr); \
-                  DBG_Mutex.unlock(); \
+                  Logging_Mutex.unlock(); \
                  }}
 #define DBGALLOC(...) DBG(__VA_ARGS__) // TBD: add option to turn these off
 #define DBGCTOR       DBGALLOC("%s CTOR:%p\n", __PRETTY_FUNCTION__, this)
@@ -42,11 +43,15 @@ extern recursive_mutex DBG_Mutex;
 #endif
 
 #define WARN(...) {                            \
+    Logging_Mutex.lock();                      \
     fprintf (stderr, "Warning: " __VA_ARGS__); \
+    Logging_Mutex.unlock();                    \
 }
 
 #define ERROR(...) {                         \
+    Logging_Mutex.lock();                    \
     fprintf (stderr, "Error: " __VA_ARGS__); \
+    Logging_Mutex.unlock();                  \
     exit (1);                                \
 }
 

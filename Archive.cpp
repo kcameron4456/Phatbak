@@ -104,6 +104,9 @@ ArchiveRead::~ArchiveRead() {
 }
 
 void ArchiveRead::ParseOptions () {
+    // default to global options
+    O = ::O;
+
     // extract options from the archive file
     fstream OptsFile = OpenReadStream (OptionsPath);
     string OptLine;
@@ -123,7 +126,9 @@ void ArchiveRead::ParseOptions () {
         string &OptName = Toks[0];
         string &OptVal  = Toks[1];
 
-             if (OptName == "BlockNumModulus") O.BlockNumModulus = stoull               (OptVal);
+             if (OptName == "FileArgs"       ) O.FileArgs        = SplitStr             (OptVal, " ");
+        else if (OptName == "CWD"            ) O.CWD             =                      (OptVal);
+        else if (OptName == "BlockNumModulus") O.BlockNumModulus = stoull               (OptVal);
         else if (OptName == "ChunkSize"      ) O.ChunkSize       = stoull               (OptVal);
         else if (OptName == "HashType"       ) O.HashType        = HashNameToEnum       (OptVal);
         else if (OptName == "CompType"       ) O.CompType        = Comp::CompNameToEnum (OptVal);
@@ -131,6 +136,10 @@ void ArchiveRead::ParseOptions () {
     }
 
     OptsFile.close();
+
+    // apply modified options to global
+    // TBD: make sure everyone is using the correct options then get rid of this
+    ::O = O;
 }
 
 void ArchiveRead::DoExtractJob (const string &ListLine, u64 LineNo) {
@@ -200,7 +209,7 @@ void ArchiveRead::DoExtract () {
     while (getline (ListFile, ListLine)) {
         LineNo ++;
 
-        function <void()> Task = [=](){DoExtractJob (ListLine, LineNo);};
+        function <void()> Task = [=, this](){DoExtractJob (ListLine, LineNo);};
         ThreadPool.Execute (Task);
     }
 
@@ -310,69 +319,97 @@ void ArchiveRead::DoTest () {
     FL.close();
 }
 
+void ArchiveRead::DoCompareJob (const FileListEntry &ListEntry) {
+    // stat the live file
+    LiveFile *LF = new LiveFile (ListEntry.Name);
+
+    // compare attibutes
+    if (ListEntry.Stats.st_mode != LF->Stats.st_mode)
+        WARN ("Archived mode (%o) doesn't match (%o) for file: %s\n", ListEntry.Stats.st_mode, LF->Stats.st_mode, ListEntry.Name.c_str());
+    if (!TimeSpecsEqual (ListEntry.Stats.st_mtim, LF->Stats.st_mtim))
+        WARN ("Archived modification time (%s) doesn't match (%s) for file: %s\n",
+              TimeSpec_ToText(ListEntry.Stats.st_mtim).c_str(), TimeSpec_ToText (LF->Stats.st_mtim).c_str(), ListEntry.Name.c_str());
+
+    // compare contents
+    if (ListEntry.Stats.st_size == LF->Stats.st_size) {
+        if (LF->IsFile()) {
+            // open the file in the archive
+            auto AF = new ArchFileRead (this, ListEntry);
+
+            // open the live file for reading data
+            LF->OpenRead();
+            for (auto Chunk : AF->Chunks) { 
+                // grab the chunk
+                string ChunkData;
+                ChunkBlocks->SlurpBlock (Chunk.ChunkIdx, ChunkData);
+
+                // handle decompress
+                string *SelData = &ChunkData;
+                string DeCompressed;
+                if (Chunk.CompFlag != CompFlagUnComp) {
+                    Comp::DeCompress (Chunk.CompFlag, ChunkData, DeCompressed);
+                    SelData = &DeCompressed;
+                }
+
+                // check hash
+                string ChunkDataHash = HashStr (O.HashType, *SelData);
+                if (ChunkDataHash != Chunk.Hash)
+                    WARN ("Hash mismatch on data chunk #%ld\n", Chunk.ChunkIdx);
+
+                // compare data
+                string LFChunkData;
+                if (!LF->ReadChunk (LFChunkData)) {
+                    WARN ("Unexpected end of read data from: %s\n", ListEntry.Name.c_str());
+                    break;
+                }
+                if (*SelData != LFChunkData) {
+                    WARN ("Contents of archived file don't match: %s\n", ListEntry.Name.c_str());
+                    break;
+                }
+            }
+            LF->Close();
+
+            delete AF;
+        }
+    } else {
+        WARN ("Archived size (%ld) doesn't match (%ld) for file: %s\n", ListEntry.Stats.st_size, LF->Stats.st_size, ListEntry.Name.c_str());
+    }
+
+    delete LF;
+}
+
 void ArchiveRead::DoCompare () {
+    // canonicalize archive dir names
+    vecstr CanFileArgs;
+    for (auto &FileArg: O.FileArgs)
+        CanFileArgs.push_back (CanonizeFileName (FileArg, O.CWD));
+
     // compare all files in the archive
     fstream FL = OpenReadStream (ListPath);
     string Line;
     u64 LineCount = 1;
     while (getline (FL, Line)) {
         FileListEntry ListEntry = ParseListLine (Line, LineCount);
+
+        // filter against file args used during the archive creation
+        bool Keep = 0;
+        for (auto FileArg : CanFileArgs)
+            if (ListEntry.Name.find (FileArg) == 0)
+                Keep = 1;
+        if (!Keep)
+            continue;
+
         if (O.ShowFiles)
             printf ("%s\n", ListEntry.Name.c_str());
 
-        // open the file on disk
-        LiveFile *LF = new LiveFile (ListEntry.Name);
-
-        // compare attibutes
-        if (ListEntry.Stats.st_mode != LF->Stats.st_mode)
-            WARN ("Archived mode (%o) doesn't match (%o) for file: %s\n", ListEntry.Stats.st_mode, LF->Stats.st_mode, ListEntry.Name.c_str());
-        if (!TimeSpecsEqual (ListEntry.Stats.st_mtim, LF->Stats.st_mtim))
-            WARN ("Archived modification time (%s) doesn't match (%s) for file: %s\n",
-                  TimeSpec_ToText(ListEntry.Stats.st_mtim).c_str(), TimeSpec_ToText (LF->Stats.st_mtim).c_str(), ListEntry.Name.c_str());
-
-        // compare contents
-        if (ListEntry.Stats.st_size == LF->Stats.st_size) {
-            if (LF->IsFile()) {
-                auto AF = new ArchFileRead (this, ListEntry);
-                LF->OpenRead();
-                for (auto Chunk : AF->Chunks) { 
-                    // grab the chunk
-                    string ChunkData;
-                    ChunkBlocks->SlurpBlock (Chunk.ChunkIdx, ChunkData);
-
-                    // handle decompress
-                    string *SelData = &ChunkData;
-                    string DeCompressed;
-                    if (Chunk.CompFlag != CompFlagUnComp) {
-                        Comp::DeCompress (Chunk.CompFlag, ChunkData, DeCompressed);
-                        SelData = &DeCompressed;
-                    }
-
-                    // check hash
-                    string ChunkDataHash = HashStr (O.HashType, *SelData);
-                    if (ChunkDataHash != Chunk.Hash)
-                        WARN ("Hash mismatch on data chunk #%ld\n", Chunk.ChunkIdx);
-
-                    // compare data
-                    string LFChunkData;
-                    if (!LF->ReadChunk (LFChunkData)) {
-                        WARN ("Unexpected end of read data from: %s\n", ListEntry.Name.c_str());
-                        break;
-                    }
-                    if (*SelData != LFChunkData) {
-                        WARN ("Contents of archived file don't match: %s\n", ListEntry.Name.c_str());
-                        break;
-                    }
-                }
-                LF->Close();
-                delete AF;
-            }
-        } else {
-            WARN ("Archived size (%ld) doesn't match (%ld) for file: %s\n", ListEntry.Stats.st_size, LF->Stats.st_size, ListEntry.Name.c_str());
-        }
-
-        delete LF;
+        function <void()> Task = [=,this]() {
+            DoCompareJob (ListEntry);
+        };
+        ThreadPool.Execute (Task, 0);
     };
+    FL.close();
+
+    ThreadPool.WaitIdle();
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -421,14 +458,12 @@ ArchiveCreate::ArchiveCreate (RepoInfo *repo, const string &name, ArchiveBase *b
 
     // if using a base arch, preload finfo and chunk allocators based on previous files
     if (ArchBase) {
-fprintf (stderr, "ArchiveBase::ArchiveBase reverse allocation begun\n");
         // initialize the finfo and chunk blocklist allocator based on base files
 
         FInfoBlocks->ReverseAlloc(ArchBase->FInfoBlocks->TopDir);
         ChunkBlocks->ReverseAlloc(ArchBase->ChunkBlocks->TopDir);
 
         ThreadPool.WaitIdle();
-fprintf (stderr, "ArchiveBase::ArchiveBase reverse allocation complete\n");
     }
 
     // start the file list
@@ -674,7 +709,7 @@ void ArchFileCreate::Create (InodeInfo *Inode) {
                                            &BaseFile->Chunks[ChunkIdx] : NULL;
 
                 // read, compress, and test the data
-                function <void()> Task = [=]() {
+                function <void()> Task = [=,this]() {
                     HashAndCompressJob (ChunkData, BaseChunkInfo, BaseChunkBlocks, Return);
                 };
                 ThreadPool.Execute (Task, 0);

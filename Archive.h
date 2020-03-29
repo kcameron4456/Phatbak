@@ -58,6 +58,7 @@ class ArchiveRead : public Archive {
     mutex                    HLinkSyncsMtx;
     vector <DirAttribRec>    DirAttribs;
     mutex                    DirAttribsMtx;
+    Opts                     O;  // options from archive "Options" file
 
     void ParseOptions();
 
@@ -70,6 +71,7 @@ class ArchiveRead : public Archive {
     void DoExtractJob (const string &ListLine, u64 LineNo);
     void DoList       ();
     void DoTest       ();
+    void DoCompareJob (const FileListEntry &ListEntry);
     void DoCompare    ();
 };
 

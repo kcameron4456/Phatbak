@@ -132,7 +132,7 @@ void Create::DoCreate (const string &Name, bool Recurse) {
     // create sub dirs/files
     if (Recurse)
         for (auto &Sub : Subs) {
-            function <void()> Task = [=](){DoCreate (Sub);};
+            function <void()> Task = [=,this](){DoCreate (Sub);};
 
             // this severely slows everything down
             // consumes too many threads, I guess

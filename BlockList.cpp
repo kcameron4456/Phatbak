@@ -207,6 +207,7 @@ vecstr BlockList::GetSubDirs (i64 Idx) const {
 
         SubDirs.push_back (string ("d") + to_string (Part));
     }
+DBG ("BlockList::GetSubDirs TopDir=%s Idx=%ld SubDirs=%s\n", TopDir.c_str(), Idx, Utils::JoinStrs(SubDirs, " ").c_str());
     return SubDirs;
 }
 
@@ -225,9 +226,11 @@ string BlockList::Idx2DirString (i64 Idx, const string &Top) const {
     return Top + "/" + Idx2SubDirString (Idx);
 }
 
-// convert a block number to a path relative to a top dir
+// convert a block number to a path relative to the top dir
 string BlockList::Idx2FileName (i64 Idx) const {
-    return Idx2DirString (Idx) + "/" + to_string (Idx);
+    string Name = Idx2DirString (Idx) + "/" + to_string (Idx);
+DBG ("BlockList::Idx2FileName TopDir=%s Idx=%ld Name=%s\n", TopDir.c_str(), Idx, Name.c_str());
+    return Name;
 }
 
 void BlockList::SlurpBlock (i64 Idx, string &BufStr) const {
@@ -287,12 +290,12 @@ void BlockList::ReverseAlloc (const string &Dir) {
     Utils::SlurpDir (Dir, SubDirs, SubFiles);
 
     for (auto SubDir : SubDirs) {
-        function <void()> Task = [=](){ReverseAlloc (Dir + "/" + SubDir);};
+        function <void()> Task = [=,this](){ReverseAlloc (Dir + "/" + SubDir);};
         ThreadPool.Execute (Task, 0);
     }
 
     for (auto SubFile : SubFiles) {
-        function <void()> Task = [=](){MarkAllocated (strtoull (SubFile.c_str(), NULL, 10));};
+        function <void()> Task = [=,this](){MarkAllocated (strtoull (SubFile.c_str(), NULL, 10));};
         ThreadPool.Execute (Task, 0);
     }
 }

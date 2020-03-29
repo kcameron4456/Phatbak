@@ -20,7 +20,7 @@ namespace Utils {
     string TrimStr (string  Str);
 
     // create full path name to file without extraneous relatime paths 
-    string CanonizeFileName (const string &RawName);
+    string CanonizeFileName (const string &RawName, const string &CWD = "");
 
     // join multiple strings into one with optional separater
     string JoinStrs (const vecstr &Parts, const string &Sep = "");

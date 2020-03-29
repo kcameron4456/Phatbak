@@ -8,7 +8,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sstream>
+#include <filesystem>
 using namespace std;
+namespace fs = filesystem;
 
 // global options declaration
 Opts O;
@@ -153,6 +155,7 @@ void Opts::ParseCmdLine (const int argc, const char *argv[]) {
     DebugPrint      = 0;
     BlockNumModulus = 100;
     Rebase          = false;
+    CWD             = fs::canonical(fs::current_path());
 
     // save command line
     int argidx;
@@ -285,6 +288,7 @@ string Opts::OptsString () {
     F << "   CmdLine         = " << CmdLine                         << endl;
     F << "   Operation       = " << OpText()                        << endl;
     F << "   FileArgs        = " << Utils::JoinStrs (FileArgs, " ") << endl;
+    F << "   CWD             = " << CWD                             << endl;
     F << "   RepoDirName     = " << RepoDirName                     << endl;
     F << "   ArchDirName     = " << ArchDirName                     << endl;
     F << "   BaseArchive     = " << BaseArchive                     << endl;

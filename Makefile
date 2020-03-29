@@ -17,7 +17,7 @@ else
 endif
 
 CXXFLAGS =
-CPPFLAGS += -std=c++17 $(MYCFLAGS)
+CPPFLAGS += -std=c++2a $(MYCFLAGS)
 LDFLAGS  += -lpthread -lstdc++fs -lzstd -lmhash
 LDFLAGS  += -rdynamic -lboost_stacktrace_addr2line
 LDFLAGS  += -lacl

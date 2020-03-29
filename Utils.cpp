@@ -11,7 +11,6 @@
 #include <acl/libacl.h>
 #include <sys/acl.h>
 #include <chrono>
-//#include <format>
 namespace fs = std::filesystem;
 
 namespace Utils {
@@ -43,17 +42,23 @@ namespace Utils {
         return Str;
     }
 
-    string CanonizeFileName (const string &RawName) {
+    string CanonizeFileName (const string &RawName, const string &CWD) {
         string FullName;
 
         // prepend current directory to name, if needed
         if (RawName[0] == '/') {
             FullName = RawName;
         } else {
-            char cwd [4000];
-            if (getcwd (cwd, sizeof(cwd)) == NULL)
-                THROW_PBEXCEPTION ("getcwd failed: ");
-            FullName = string(cwd) + "/" + RawName;
+            string CwdStr;
+            if (CWD.size()==0) {
+                char cwd [4000];
+                if (getcwd (cwd, sizeof(cwd)) == NULL)
+                    THROW_PBEXCEPTION ("getcwd failed: ");
+                CwdStr = string (cwd);
+            } else {
+                CwdStr = CWD;
+            }
+            FullName = CwdStr + "/" + RawName;
         }
 
         // tokenize by spliting on "/"

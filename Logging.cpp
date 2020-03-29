@@ -1,5 +1,3 @@
 #include <mutex>
 
-#ifdef DBGMSG
-std::recursive_mutex DBG_Mutex;
-#endif
+std::recursive_mutex Logging_Mutex;
