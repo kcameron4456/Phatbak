@@ -9,25 +9,25 @@ namespace fs = std::filesystem;
 RepoInfo::RepoInfo (const string &name) {
     Name = name;
     if (!fs::is_directory (Name))
-        THROW_PBEXCEPTION_FMT ("Repo dir (%s) not found", Name.c_str());
+        ERROR ("Repo dir (%s) not found\n", Name.c_str());
 
     // check for repo consistancy
     string RepoId = Name + "/" + PHATBAK_REPO_ID;
     if (!fs::exists (RepoId))
         // TBD: optionally create repo if it doesn't exist
-        THROW_PBEXCEPTION_FMT ("Repo Indentifier (%s) not found", RepoId.c_str());
+        ERROR ("Repo Indentifier (%s) not found\n", RepoId.c_str());
 
     // check for previous base archive 
+    LatestArchName = "";
     if (!O.Rebase) {
         vecstr SubDirs, SubFiles;
         Utils::SlurpDir (Name, SubDirs, SubFiles);
 
-        // find most recent standard archive
-        LatestArchName = "";
+        // find most recent standard archive (i.e. name is time in standaridized format)
         for (auto SubDir : SubDirs) {
             if (!fs::exists (SubDir + "/" + PHATBAK_ARCH_ID))
                 continue;
-            static string Pattern = "XXXX_XX_XX_XXXX_XX";
+            static const string Pattern = "XXXX_XX_XX_XXXX_XX";
             if (SubDir.size() != Pattern.size())
                 continue;
             string TempSubDir = SubDir;
@@ -40,18 +40,6 @@ RepoInfo::RepoInfo (const string &name) {
                 LatestArchName = SubDir;
         }
     }
-    //LatestArchName = "";
-    //if (O.BaseArchive == "") {
-    //    string LatestArchLink = Name + "/LatestArchive";
-    //    if (0 && fs::exists (LatestArchLink + "/" PHATBAK_ARCH_ID)) // TBD: figure out another way
-    //        LatestArchName = fs::read_symlink (LatestArchLink);
-    //} else {
-    //    string TryName = O.BaseArchive;
-    //    if (fs::exists (Name + "/" + TryName + "/" PHATBAK_ARCH_ID))
-    //        LatestArchName = TryName;
-    //    else
-    //        THROW_PBEXCEPTION_FMT ("Base archive (%s) doesn't exist", O.BaseArchive.c_str());
-    //}
 }
 
 void RepoInfo::Finish (const string &ArchName) {

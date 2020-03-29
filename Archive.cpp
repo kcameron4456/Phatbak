@@ -16,7 +16,7 @@ Archive::Archive(RepoInfo *repo, const string &name) {
     DBGCTOR;
     Repo           = repo;
     Name           = name;
-    ArchDirPath    = Repo->Name + "/" + Name;
+    ArchDirPath    = Repo->Name  + "/" + Name;
     IDPath         = ArchDirPath + "/" + PHATBAK_ARCH_ID;
     ListPath       = ArchDirPath + "/List";
     LogPath        = ArchDirPath + "/PhatBak.log";
@@ -78,7 +78,7 @@ FileListEntry Archive::ParseListLine (const string &ListLine, u64 LineNo) {
     }
 
     // parse optional third field
-    // only slink
+    // only slink allowed
     if (FirstCut.size() == 3) {
         if (FirstCut[2].substr(0,6) != "slink>")
             THROW_PBEXCEPTION_FMT ("Illegal entry in %s:%llu : %s", ListPath.c_str(), LineNo, FirstCut[2].c_str());
@@ -91,11 +91,21 @@ FileListEntry Archive::ParseListLine (const string &ListLine, u64 LineNo) {
 //////////////////////////////////////////////////////////////////////
 ArchiveRead::ArchiveRead (RepoInfo *repo, const string &name) : Archive (repo, name) {
     DBGCTOR;
-    ParseOptions ();
 
+    if (Name == "")
+        // default to latest archive
+        Name = Repo->LatestArchName;
+    if (Name == "")
+        ERROR ("No archive name given and no existing archive found\n");
+
+    // see if it's really an archive
     if (!fs::exists (IDPath))
         ERROR ("%s doesn't exist\n", IDPath.c_str());
 
+    // get options used in the archive
+    ParseOptions ();
+
+    // get ready to read file list
     ListFile = OpenReadStream (ListPath);
 }
 
