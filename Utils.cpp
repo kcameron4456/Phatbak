@@ -248,11 +248,11 @@ namespace Utils {
     // create archive file stats header from standard stat type
     string CreateStatsHeader (const struct stat &Stats) {
         stringstream res;
-        res << "mode:"  << hex <<                Stats.st_mode  << " ";
-        res << "uid:"   << hex <<                Stats.st_uid   << " ";
-        res << "gid:"   << hex <<                Stats.st_gid   << " ";
-        res << "size:"  << dec <<                Stats.st_size  << " "; // keep size in decimal to make it easier to read and debug
-        res << "mtime:" << hex << TimeSpec_ToNs (Stats.st_mtim) << " ";
+        res << "mode:"  << hex <<               Stats.st_mode  << " ";
+        res << "uid:"   << hex <<               Stats.st_uid   << " ";
+        res << "gid:"   << hex <<               Stats.st_gid   << " ";
+        res << "size:"  << dec <<               Stats.st_size  << " "; // keep size in decimal to make it easier to read and debug
+        res << "mtime:" << hex << TimeSpecToNs (Stats.st_mtim) << " ";
 
         return res.str();
     }
@@ -267,7 +267,7 @@ namespace Utils {
     }
 
     // convert stats time_t to ns time
-    u64 TimeSpec_ToNs (const timespec &T) {
+    u64 TimeSpecToNs (const timespec &T) {
         return (u64) T.tv_sec * 1000000000 + (u64) T.tv_nsec;
     }
 
@@ -277,11 +277,11 @@ namespace Utils {
     }
 
     // convert unix timespec to human readable text
-    string TimeSpec_ToText (const timespec &T) {
+    string TimeSpecToText (const timespec &T) {
         using namespace chrono;
 
         // convert ns to duration
-        u64 ns = TimeSpec_ToNs (T);
+        u64 ns = TimeSpecToNs (T);
         auto dur = nanoseconds(ns);
 
         // convert to text
@@ -291,6 +291,11 @@ namespace Utils {
         strftime (Result.data(), Result.size(), "%Y_%m_%d_%H%M_%S", std::localtime(&Time_t));
 
         return Result;
+    }
+
+    // convert epoch nanoseconds to text time
+    string TimeSpecToText (u64 &ns) {
+        return TimeSpecToText (NsToTimeSpec(ns));
     }
 
     // create a socket

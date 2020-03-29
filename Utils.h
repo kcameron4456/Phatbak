@@ -78,13 +78,16 @@ namespace Utils {
     timespec NsToTimeSpec (u64 ns);
 
     // convert stats time_t to ns time
-    u64 TimeSpec_ToNs (const timespec &T);
+    u64 TimeSpecToNs (const timespec &T);
 
     // return true if two timespecs are equal
     bool TimeSpecsEqual (const timespec &T1, const timespec &T2);
 
     // convert unix timespec to human readable text
-    string TimeSpec_ToText (const timespec &T);
+    string TimeSpecToText (const timespec &T);
+
+    // convert epoch nanoseconds to text time
+    string NsToText (const timespec &T);
 
     // create a unix domain socket
     void CreateSocket (const string &Name);

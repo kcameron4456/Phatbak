@@ -153,7 +153,7 @@ LiveFile::LiveFile (const FileListEntry &ListEntry
             DirAttrib.Uid   = Stats.st_uid;
             DirAttrib.Gid   = Stats.st_gid;
             DirAttrib.Mode  = Stats.st_mode;
-            DirAttrib.MTime = TimeSpec_ToNs(Stats.st_mtim);
+            DirAttrib.MTime = TimeSpecToNs(Stats.st_mtim);
             DirAttrib.Acl   = ListEntry.Acl;
 
             DirAttribsMtx->lock();

@@ -148,8 +148,10 @@ void ArchiveRead::DoExtractJob (const string &ListLine, u64 LineNo) {
     // filter against user-specified extraction list
     if (O.FileArgs.size()) {
         bool FileOk = false;
-        for (auto FileArg: O.FileArgs)
-            FileOk |= ListEntry.Name.find (FileArg, 0) == 0;
+        for (auto FileArg: O.FileArgs) {
+            string CanFileArg = CanonizeFileName (FileArg, O.CWD);
+            FileOk |= ListEntry.Name.find (CanFileArg, 0) == 0;
+        }
         if (!FileOk)
             return;
     }
@@ -216,7 +218,10 @@ void ArchiveRead::DoExtract () {
     // wait for all jobs to finish
     ThreadPool.WaitIdle();
 
-    // handle deferred modification times
+    // handle deferred modification times for directories
+    // first sort so we can start with leaf nodes
+    sort (DirAttribs.begin(), DirAttribs.end(),
+          [](DirAttribRec &A, DirAttribRec &B)->bool {return A.Name.size() > B.Name.size();});
     for (auto& DirAttrib : DirAttribs) {
         SetOwn      (DirAttrib.Name, DirAttrib.Uid, DirAttrib.Gid );
         SetMode     (DirAttrib.Name, DirAttrib.Mode);
@@ -328,7 +333,7 @@ void ArchiveRead::DoCompareJob (const FileListEntry &ListEntry) {
         WARN ("Archived mode (%o) doesn't match (%o) for file: %s\n", ListEntry.Stats.st_mode, LF->Stats.st_mode, ListEntry.Name.c_str());
     if (!TimeSpecsEqual (ListEntry.Stats.st_mtim, LF->Stats.st_mtim))
         WARN ("Archived modification time (%s) doesn't match (%s) for file: %s\n",
-              TimeSpec_ToText(ListEntry.Stats.st_mtim).c_str(), TimeSpec_ToText (LF->Stats.st_mtim).c_str(), ListEntry.Name.c_str());
+              TimeSpecToText(ListEntry.Stats.st_mtim).c_str(), TimeSpecToText (LF->Stats.st_mtim).c_str(), ListEntry.Name.c_str());
 
     // compare contents
     if (ListEntry.Stats.st_size == LF->Stats.st_size) {
@@ -487,12 +492,12 @@ ArchiveCreate::~ArchiveCreate () {
 
 void ArchiveCreate::PushListEntry (const FileListEntry &ListEntry) {
     stringstream SListLine;
-    SListLine <<                                   ListEntry.Name           << ListRecSep;
-    SListLine << "mode>"  << hex <<                ListEntry.Stats.st_mode  << " ";
-    SListLine << "uid>"   << hex <<                ListEntry.Stats.st_uid   << " ";
-    SListLine << "gid>"   << hex <<                ListEntry.Stats.st_gid   << " ";
-    SListLine << "size>"  << dec <<                ListEntry.Stats.st_size  << " "; // note: decimal
-    SListLine << "mtime>" << hex << TimeSpec_ToNs (ListEntry.Stats.st_mtim)       ;
+    SListLine <<                                  ListEntry.Name           << ListRecSep;
+    SListLine << "mode>"  << hex <<               ListEntry.Stats.st_mode  << " ";
+    SListLine << "uid>"   << hex <<               ListEntry.Stats.st_uid   << " ";
+    SListLine << "gid>"   << hex <<               ListEntry.Stats.st_gid   << " ";
+    SListLine << "size>"  << dec <<               ListEntry.Stats.st_size  << " "; // note: decimal
+    SListLine << "mtime>" << hex << TimeSpecToNs (ListEntry.Stats.st_mtim)       ;
     if (ListEntry.Acl.size())
         SListLine << " acl>" << ListEntry.Acl;
     if (ListEntry.FInfoIdx != INT64_MIN)
