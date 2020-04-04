@@ -1,10 +1,10 @@
 DEFTARGS = PhatBak
 
 ## get the latest git tag and create C++ macros for source
-#VERSION := $(perl {@tags = grep /^Release-/, `git tag --merged`; $_ = pop @tags; chomp; s/^Release-//;$_})
-#VERSION_MAJOR := $(perl {my @parts = split /\./, $VERSION; $parts[0];})
-#VERSION_MINOR := $(perl {my @parts = split /\./, $VERSION; $parts[1];})
-#VERSION_ARG = -DVERSION_MAJOR=$(VERSION_MAJOR) -DVERSION_MINOR=$(VERSION_MINOR)
+VERSION := $(perl {@tags = grep /^v/, `git tag --merged`; $_ = pop @tags; chomp; s/^v//;$_})
+VERSION_MAJOR := $(perl {my @parts = split /\./, $VERSION; $parts[0];})
+VERSION_MINOR := $(perl {my @parts = split /\./, $VERSION; $parts[1];})
+VERSION_ARG = -DVERSION_MAJOR=$(VERSION_MAJOR) -DVERSION_MINOR=$(VERSION_MINOR)
 
 MYCFLAGS  = -Wall -Werror -Wno-error=parentheses
 #MYCFLAGS += -rdynamic
