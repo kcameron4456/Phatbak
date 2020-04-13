@@ -484,9 +484,12 @@ ArchiveCreate::ArchiveCreate (RepoInfo *repo, const string &name, ArchiveBase *b
 
     // create the log file
     LogFile = OpenWriteStream (LogPath);
-    LogFile << "Backup Started At: " << &O.StartTimeTxt << endl;
+    LogFile << "Backup Started At: " << O.StartTimeTxt << endl;
 
     // create Options file
+    O.ArchDirName = Name;
+    if (ArchBase)
+        O.BaseArchive = ArchBase->ArchDirPath;
     fstream OptFile = OpenWriteStream (OptionsPath);
     O.Print (OptFile);
     OptFile.close();
@@ -514,11 +517,15 @@ ArchiveCreate::~ArchiveCreate () {
 
     ThreadPool.WaitIdle ();
 
-    time_t EndTime = time(NULL);
-    LogFile << "Backup Ended At: " << ctime(&EndTime) << endl;
+    u64 EndTime = TimeNowNs ();
+    string EndTimeStr = NsToText (EndTime);
 
-    int Secs = difftime (EndTime, O.StartTime);
-    LogFile << "Elasped Time: " << Secs << " seconds\n";
+    LogFile << "Backup Ended At: " << EndTimeStr << endl;
+
+    u64 NsDelta = EndTime - O.StartTime;
+
+    LogFile.precision(2);
+    LogFile << "Elasped Time: " << fixed << NsDelta/1e9 << " seconds\n";
 
     LogFile.close();
 
