@@ -332,7 +332,6 @@ void ArchiveRead::DoTest () {
     mutex           UsedFInfosMapMtx, UsedChunksMapMtx;
     string Line;
     u64 LineCount = 0;
-cout << "ArchiveRead::DoTest Start Read Files\n";
     while (getline (ListFile, Line)) {
         LineCount ++;
         function <void()> Task = [&,this,Line,LineCount]() {
@@ -341,16 +340,13 @@ cout << "ArchiveRead::DoTest Start Read Files\n";
         ThreadPool.Execute (Task);
     }
     ThreadPool.WaitIdle();
-cout << "ArchiveRead::DoTest End Read Files\n";
 
     // find existing block files
     map <i64, bool> FoundFInfosMap   , FoundChunksMap   ;
     mutex           FoundFInfosMapMtx, FoundChunksMapMtx;
-cout << "ArchiveRead::DoTest Start FindBlockFiles\n";
     FindBlockFiles (FinfoDirPath, FinfoDirPath, FoundFInfosMap, FoundFInfosMapMtx);
     FindBlockFiles (ChunkDirPath, ChunkDirPath, FoundChunksMap, FoundChunksMapMtx);
     ThreadPool.WaitIdle();
-cout << "ArchiveRead::DoTest End FindBlockFiles\n";
 
     // make sure all finfo and chunk blocks are used
     for (auto Itr : FoundFInfosMap)
