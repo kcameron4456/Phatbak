@@ -163,6 +163,7 @@ void ThreadPool_t::Execute (function <void()> *Task, bool Wait) {
         Thr->ParentDepth = ThreadDepth;
         Thr->Go();
     } else {
+        // execute the task in current thread
         (*Task)();
         delete Task;
     }
