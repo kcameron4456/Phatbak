@@ -12,11 +12,7 @@
 #include <sstream>
 #include <iomanip>
 
-#define BOOST_STACKTRACE_USE_ADDR2LINE
-#define BOOST_STACKTRACE_DYN_LINK
-#define BOOST_STACKTRACE_LINK
-#define BOOST_ALL_DYN_LINK
-#include <boost/stacktrace.hpp>
+#include <stacktrace>
 
 using namespace std;
 
@@ -81,21 +77,7 @@ class PB_Exception {
     }
     string Backtrace () {
         stringstream res;
-        #if (0)
-            // this needs work
-            namespace bs = boost::stacktrace;
-            bs::stacktrace st;
-            int Cnt = 0;
-            for (auto frame: st)
-                res
-                    << setw(2) << Cnt++ << "# " << setw(0)
-                    << frame.name()
-                    << ":" << frame.source_file()
-                    << ":" << frame.source_line()
-                    << endl;
-        #else
-            res << boost::stacktrace::stacktrace() << endl;
-        #endif
+        res << std::stacktrace::current() << endl;
 
         // get rid of linese with PB_Exception
         string Traces = res.str();
