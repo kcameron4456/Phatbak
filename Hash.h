@@ -1,7 +1,9 @@
 #ifndef HASH_H
 #define HASH_H
 
+typedef bool _Bool;  // needed for clang mhash compile
 #include <mhash.h>
+
 #include <string>
 using namespace std;
 
