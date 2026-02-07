@@ -78,6 +78,8 @@ class ArchiveRead : public Archive {
     void DoTest       ();
     void DoCompareJob (const FileListEntry &ListEntry);
     void DoCompare    ();
+    
+    const Opts & GetOptions ();
 };
 
 class ArchiveBase : public ArchiveRead {

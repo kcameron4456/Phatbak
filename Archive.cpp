@@ -155,6 +155,10 @@ void ArchiveRead::ParseOptions () {
     ::O = O;
 }
 
+const Opts & ArchiveRead::GetOptions () {
+    return O;
+}
+
 void ArchiveRead::DoExtractJob (const string &ListLine, u64 LineNo) {
     FileListEntry ListEntry = ParseListLine (ListLine, LineNo);
 
