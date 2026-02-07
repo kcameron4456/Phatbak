@@ -60,7 +60,7 @@ class PB_Exception {
     void PrintMessage () {
         fprintf (stderr, "%s\n", Message.c_str());
     }
-    void MakeMessage (int SrcLine, const char *SrcFile, const string &fmt, va_list args) {
+    void MakeMessage (int SrcLine, const char *SrcFile, const string fmt, va_list args) {
         char LBuf [100];
         snprintf (LBuf, 99, "%d", SrcLine);
         string NewFmt = (string)SrcFile + ":" + LBuf + ": " + MsgType + fmt;
@@ -70,7 +70,7 @@ class PB_Exception {
         Message  = Backtrace();
         Message += cmsg;
     }
-    void MakeMessage (int SrcLine, const char *SrcFile, const string &fmt, ...) {
+    void MakeMessage (int SrcLine, const char *SrcFile, const string fmt, ...) {
         PB_VARGS(fmt);
         MakeMessage (SrcLine, SrcFile, fmt, args);
         va_end(args);
@@ -79,7 +79,7 @@ class PB_Exception {
         stringstream res;
         res << std::stacktrace::current() << endl;
 
-        // get rid of linese with PB_Exception
+        // get rid of lines with PB_Exception
         string Traces = res.str();
         vecstr Lines = Utils::SplitStr (Traces, "\n");
         vecstr ResLines;
@@ -100,7 +100,7 @@ class PB_Exception {
     PB_Exception () {
         Message = "PB_Exception - undefined exception type";
     }
-    PB_Exception (int SrcLine, const char *SrcFile, const string &fmt, ...) {
+    PB_Exception (int SrcLine, const char *SrcFile, const string fmt, ...) {
         MsgType = "PhatBak Error: ";
         PB_VARGS(fmt);
         MakeMessage (SrcLine, SrcFile, fmt, args);
@@ -109,7 +109,7 @@ class PB_Exception {
 };
 class PB_ExceptionFMT : public PB_Exception {
     public:
-    PB_ExceptionFMT (int SrcLine, const char *SrcFile, const string &fmt, ...) {
+    PB_ExceptionFMT (int SrcLine, const char *SrcFile, const string fmt, ...) {
         MsgType = "PhatBak Format Error: ";
         PB_VARGS(fmt);
         MakeMessage (SrcLine, SrcFile, fmt, args);
@@ -127,7 +127,7 @@ class PB_ExceptionIO : public PB_Exception {
         Print ();
         exit (ErrNo);
     }
-    PB_ExceptionIO (int SrcLine, const char *SrcFile, const string &fmt, ...) {
+    PB_ExceptionIO (int SrcLine, const char *SrcFile, const string fmt, ...) {
         MsgType = "PhatBak IO Error: ";
         ErrNo = errno;
         PB_VARGS(fmt);
