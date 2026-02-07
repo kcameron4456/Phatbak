@@ -47,7 +47,6 @@ class Opts {
                  ,DoCompare
                  ,DoList
                  ,DoShowLatest
-                 ,DoVersion
                  ,DoVoid  // marks end of operations
                 } Operation; // what to do
 
@@ -66,7 +65,6 @@ class Opts {
                Op == DoCompare    ? "compare" :
                Op == DoList       ? "list"    :
                Op == DoShowLatest ? "latest"  :
-               Op == DoVersion    ? "version" :
                                     "illegal" ;
     }
 
