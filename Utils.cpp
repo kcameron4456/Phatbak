@@ -56,62 +56,66 @@ namespace Utils {
     }
 
     string CanonizeFileNameNoCWD (const string &RawName) {
-        if (RawName == "")
-            return "";
+        return fs::weakly_canonical (RawName);
+        // switch to using stdlib version
+        //if (RawName == "")
+        //    return "";
 
-        // remember if the name starts with /
-        bool abs = RawName[0] == '/';
+        //// remember if the name starts with /
+        //bool abs = RawName[0] == '/';
 
-        // tokenize by spliting on "/"
-        vecstr Toks = SplitStr (RawName, "/");
+        //// tokenize by spliting on "/"
+        //vecstr Toks = SplitStr (RawName, "/");
 
-        // discard all instances of "", ".", and "dir/.."
-        for (auto itr = Toks.begin(); itr < Toks.end(); itr++) {
-            if (*itr == "" || *itr == ".") {
-                Toks.erase (itr);
-                itr --;
-            } else if (*itr == "..") {
-                if (itr == Toks.begin()) {
-                    // handle .. at beginning
-                    Toks.erase (itr);
-                    itr --;
-                } else {
-                    Toks.erase (itr-1, itr+1);
-                    itr -= 2;
-                }
-            }
-        }
+        //// discard all instances of "", ".", and "dir/.."
+        //for (auto itr = Toks.begin(); itr < Toks.end(); itr++) {
+        //    if (*itr == "" || *itr == ".") {
+        //        Toks.erase (itr);
+        //        itr --;
+        //    } else if (*itr == "..") {
+        //        if (itr == Toks.begin()) {
+        //            // handle .. at beginning
+        //            Toks.erase (itr);
+        //            itr --;
+        //        } else {
+        //            Toks.erase (itr-1, itr+1);
+        //            itr -= 2;
+        //        }
+        //    }
+        //}
 
-        // assemble the full path from the components
-        string CanName = JoinStrs (Toks, "/");
+        //// assemble the full path from the components
+        //string CanName = JoinStrs (Toks, "/");
 
-        // restore leading /
-        if (abs)
-            CanName.insert (0, 1, '/');
+        //// restore leading /
+        //if (abs)
+        //    CanName.insert (0, 1, '/');
 
-        return CanName;
+        //return CanName;
     }
 
     string CanonizeFileName (const string &RawName, const string &CWD) {
-        string FullName;
-
-        // prepend current directory to name, if needed
-        if (RawName[0] == '/') {
-            FullName = RawName;
-        } else {
-            string CwdStr;
-            if (CWD.size()==0) {
-                char cwd [4000];
-                if (getcwd (cwd, sizeof(cwd)) == NULL)
-                    THROW_PBEXCEPTION ("getcwd failed: ");
-                CwdStr = string (cwd);
-            } else {
-                CwdStr = CWD;
-            }
-            FullName = CwdStr + "/" + RawName;
-        }
-
-        return CanonizeFileNameNoCWD (FullName);
+        return fs::canonical (RawName);
+        // switch to using stdlib version
+        //string FullName;
+        //
+        //// prepend current directory to name, if needed
+        //if (RawName[0] == '/') {
+        //    FullName = RawName;
+        //} else {
+        //    string CwdStr;
+        //    if (CWD.size()==0) {
+        //        char cwd [4000];
+        //        if (getcwd (cwd, sizeof(cwd)) == NULL)
+        //            THROW_PBEXCEPTION ("getcwd failed: ");
+        //        CwdStr = string (cwd);
+        //    } else {
+        //        CwdStr = CWD;
+        //    }
+        //    FullName = CwdStr + "/" + RawName;
+        //}
+        //
+        //return CanonizeFileNameNoCWD (FullName);
     }
 
     fstream OpenReadStream (const string &Name) {
@@ -365,10 +369,8 @@ namespace Utils {
     string GetFileAcl (const string &Name, u16 Perm, u32 Type) {
         // get file acl struture
         auto Acl = acl_get_file(Name.c_str(), Type);
-        if (Acl == 0)
+        if (!Acl)
             return ""; // no acl of this type
-        if (Acl < 0)
-            THROW_PBEXCEPTION_IO ("Can't get acl for: %s", Name.c_str());
 
         // filter out base acl entries
         acl_t NewACL = acl_init(0);
@@ -430,11 +432,7 @@ namespace Utils {
             if (ACLStr.size())
                 ACLs.push_back(ACLStr);
         }
-
-        if (ACLs.size())
-            return JoinStrs (ACLs, ";");
-
-        return "";
+        return JoinStrs (ACLs, ";");
     }
 
     static bool             LookupInitted = 0;
