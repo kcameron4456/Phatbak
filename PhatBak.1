@@ -1,6 +1,6 @@
 .\" Manpage for PhatPak.
 .\" Contact phatbak@cameronfamily.org to correct errors or typos.
-.TH man 1 "31 Mar 2020" "0.5" "PhatBak man page"
+.TH man 1 "07 Feb 2026" "0.6" "PhatBak man page"
 .SH NAME
 Phatbak \- Multithreaded file Backup/Restore utility
 .SH SYNOPSIS
@@ -17,8 +17,6 @@ PhatBak compare           <Repo>[::Archive] [file/directory arguments]
 PhatBak list              <Repo>[::Archive]
 .br
 PhatBak latest            <Repo>
-.br
-PhatBak version
 .br
 .SH DESCRIPTION
 PhatBak is a backup/restore utility designed to be fast, easy to use and space efficient.  All directories, files, symbolic links, fifos, and pipes are backed up and restored.  Permissions, ACLs, and modification times are retored as well.  Hard-link state is restored to the greatest degree possible (assuming all links to a file are backed up).
@@ -121,6 +119,20 @@ Directory to be created for extracted files.  Default is "./PhatBakExtract".
 --BlockNumModulus <modulus>
 .in +.5i
 Integer used to divide data blocks into directories and file names.  Determines tha maximum number of files or directories within each level of archive "FInfo" and "Chunks" dirs.  Default is "100".
+.in -.5i
+-h
+.br
+-help
+.br
+--help
+.in +.5i
+Show usage info and exit.
+.in -.5i
+-version
+.br
+--version
+.in +.5i
+Show version and exit.
 .in -.5i
 .SH RETURN VALUE
 PhatBak returns 0 on success, 1 if any error was detected.
