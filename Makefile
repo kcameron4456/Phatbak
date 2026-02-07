@@ -17,10 +17,19 @@ else
 endif
 
 CXXFLAGS =
-CPPFLAGS += -std=c++2a $(MYCFLAGS)
-LDFLAGS  += -lpthread -lstdc++fs -lzstd -lmhash
+CPPVERSION = -std=c++23
+CPPFLAGS += $(CPPVERSION) $(MYCFLAGS)
+LDFLAGS  += $(CPPVERSION) -lpthread -lstdc++fs -lzstd -lmhash
+LDFLAGS  += -lstdc++exp # needed for now for c++23 stdlib stacktrace
 LDFLAGS  += -rdynamic
 LDFLAGS  += -lacl
+LDFLAGS  += -lstdc++fs
+
+ifneq ($(CLANG),)
+    CC  = clang -Wno-ignored-optimization-argument
+    CXX = clang -Wno-ignored-optimization-argument
+    LD  = clang
+endif
 
 ifdef PROF
     LDFLAGS += -lprofiler
