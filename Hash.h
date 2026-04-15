@@ -12,16 +12,13 @@ typedef enum {
     HashType_CRC32,
     HashType_SHA1,
     HashType_SHA256,
+    HashType_SHA512,
     HashType_Null,  // denotes end of list
 } eHashType;
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-variable"
-
-static const char *  HashNames [] = {"MD5", "CRC32", "SHA1", "SHA256"};
-static const hashid  MHashTypes [] = {MHASH_MD5, MHASH_CRC32, MHASH_SHA1, MHASH_SHA256};
-
-#pragma GCC diagnostic pop
+// map option names to enum
+constexpr const char *  HashNames  [] = {"MD5"    , "CRC32"    , "SHA1"    , "SHA256"    , "SHA512"    };
+constexpr const hashid  MHashTypes [] = {MHASH_MD5, MHASH_CRC32, MHASH_SHA1, MHASH_SHA256, MHASH_SHA512};
 
 class Hash {
     MHASH Hasher;

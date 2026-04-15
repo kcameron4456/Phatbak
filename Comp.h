@@ -7,13 +7,10 @@
 #include <string>
 using namespace std;
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-variable"
+constexpr const char CompFlagUnComp = 'U';  // in file list and finfo, signifies uncompressed block
+constexpr const char CompFlagComp   = 'C';  // in file list and finfo, signifies compressed block
 
-static const char CompFlagUnComp = 'U';  // in file list and finfo, signifies uncompressed block
-static const char CompFlagComp   = 'C';  // in file list and finfo, signifies compressed block
-
-static const char *CompNames [] = {"none", "zstd"};
+constexpr const char *CompNames [] = {"none", "zstd"};
 
 class Opts; // needed by circular header dependecies
 

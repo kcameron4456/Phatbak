@@ -40,9 +40,7 @@ Create::Create () {
 Create::~Create () {
     for (auto Itr : Inodes) {
         u32 Dev = Itr.first;
-        map <u64, InodeInfo*> &INodeMap = Itr.second;
         for (auto Itr : Inodes[Dev]) {
-            u64        InodeNum = Itr.first;
             InodeInfo *Inode    = Itr.second;
             assert (Inode);
             delete Inode;

@@ -1,5 +1,6 @@
 .makepp
 *.o
+.gdb_history
 XXX*
 PhatBak
 UtilsTest

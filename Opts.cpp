@@ -132,7 +132,7 @@ void Opts::ParseCmdLine (const int argc, const char *argv[]) {
         PARSE_MinusStr ("--HashType"        , TmpStr     , HashType = HashNameToEnum(TmpStr);)
         PARSE_MinusVal ("--ChunkSize"       , "%d"       , &ChunkSize,)
         PARSE_MinusVal ("--BlockNumModulus" , "%d"       , &BlockNumModulus,)
-        PARSE_MinusFlg ("--rebase"          , Rebase     , )
+        PARSE_MinusFlg ("--Rebase"          , Rebase     , )
         PARSE_MinusStr ("--BaseArchive"     , BaseArchive, )
         PARSE_MinusFlg ("-h"                , TmpBool    , PrintHelp();)
         PARSE_MinusFlg ("-help"             , TmpBool    , PrintHelp();)
@@ -161,7 +161,7 @@ void Opts::ParseCmdLine (const int argc, const char *argv[]) {
 
     // next arg is the repo/archive name
     if (!OpArgList.size())
-        ERROR ("No operation given\n");
+        ERROR ("No repo name given\n");
     string RepoArchName = OpArgList [0];
     OpArgList.erase (OpArgList.begin());
     vector <string> Parts = Utils::SplitStr (RepoArchName, "::");

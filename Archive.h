@@ -15,7 +15,7 @@
 using namespace std;
 
 // this should be something that's very unlikely to show up in a file name or soft link target
-static const char* ListRecSep = " \\\'%;#\"\\ ";  /* \'%#"\ */
+constexpr const char* ListRecSep = " \\\'%;#\"\\ ";  /* \'%#"\ */
 
 // returns info from thread to archfilecreate
 class HashAndCompressReturn {

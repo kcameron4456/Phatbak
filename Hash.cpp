@@ -9,7 +9,7 @@ Hash::Hash (eHashType T) {
     if (T >= HashType_Null)
         THROW_PBEXCEPTION ("Unrecognized hash type: %d", T);
     Hasher = mhash_init (MHashTypes [T]);
-    assert (Hasher != NULL);
+    assert (Hasher);
     HashSize = mhash_get_block_size(MHashTypes [T]);
 }
 

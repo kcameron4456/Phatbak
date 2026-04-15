@@ -188,9 +188,8 @@ i64 BlockList::CountAllocated () const {
     i64 Total = 0;
     for (unsigned i = 0; i < Ranges.size(); i++) {
         auto &Range    = Ranges [i];
-        auto &RangeNxt = Ranges [i+1];
         assert (Range.max >= Range.min);
-        assert (i == Ranges.size()-1 || Range.max < RangeNxt.min-1);
+        assert (i == Ranges.size()-1 || Range.max < Ranges[i+1].min-1);
         Total += Range.max - Range.min + 1;
     }
     return Total;
