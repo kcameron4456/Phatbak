@@ -94,6 +94,10 @@ FileListEntry Archive::ParseListLine (const string &ListLine, u64 LineNo) {
 
 //////////////////////////////////////////////////////////////////////
 ArchiveRead::ArchiveRead (RepoInfo *repo, const string &name) : Archive (repo, name) {
+    // initialize archive options from global
+    // do it first so DebugPrint is valid before DBGCTOR
+    O = ::O;
+
     DBGCTOR;
 
     if (!fs::is_directory (ArchDirPath))
@@ -117,9 +121,6 @@ ArchiveRead::~ArchiveRead() {
 }
 
 void ArchiveRead::ParseOptions () {
-    // default to global options
-    O = ::O;
-
     // extract options from the archive file
     fstream OptsFile = OpenReadStream (OptionsPath);
     string OptLine;
