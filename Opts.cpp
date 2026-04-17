@@ -81,7 +81,7 @@ void Opts::ParseCmdLine (const int argc, const char *argv[]) {
     vecstr CmdArgsList;
     for (int argidx=0; argidx < argc; argidx++)
         CmdArgsList.push_back ((string)argv[argidx]);
-    CmdLine = Utils::JoinStrs (CmdArgsList);
+    CmdLine = Utils::JoinStrs (CmdArgsList, " ");
 
     // Macros to assist argument parsing
     #define PARSE_MinusVal(Name, ValFmt, ValPtr, Action) { \
